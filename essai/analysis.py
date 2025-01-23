@@ -83,13 +83,12 @@ def process_csv_points():
             
             if viewshed_layer.isValid():
                 viewshed_layer.loadNamedStyle(VIEWSHED_STYLE_FILE_PATH)
+                # BlendMode = Addition 
                 viewshed_layer.setBlendMode(QgsPainting.getCompositionMode(QgsPainting.BlendAddition))
-                # QgsRasterLayer.renderer(viewshed_layer).minMaxOrigin().setLimits(3)
+                # Bande grise 0/1 
+                viewshed_layer.renderer().contrastEnhancement().setMaximumValue(1)
                 
-                # print(QgsRasterLayer.renderer(viewshed_layer).minMaxOrigin().limits())
-                
-                viewshed_layer.triggerRepaint()
-                
+
                 # Save viewshed as GeoTIFF
                 output_file = os.path.join(OUTPUT_VIEWSHEDS_PATH, f"viewshed_{nom_point}.tif")
                 processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
@@ -103,4 +102,4 @@ def process_csv_points():
 
 # Run the processing
 process_csv_points()
-print("done")
+print("Analysis complete")
