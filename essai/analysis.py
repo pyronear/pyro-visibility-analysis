@@ -11,8 +11,9 @@ from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 ## Constants
 DEFAULT_HEIGHT = 30  # in meters
 
-## Paths
-ANALYSIS_PATH = r"C:\Users\merli\Desktop\@\Cours\3A\PyroNear\essai"
+# Définir le chemin de base comme le dossier du script ou un autre chemin de référence
+ANALYSIS_PATH = os.path.dirname(__file__)
+# Chemins relatifs 
 VIEWSHED_STYLE_FILE_PATH = os.path.join(ANALYSIS_PATH, "Digital_Elevation_Model_basRhin.qml")
 CSV_PATH = os.path.join(ANALYSIS_PATH, "pts_hauts.csv")
 DEM_PATH = os.path.join(ANALYSIS_PATH, "dem_file_projected.tif")
@@ -79,19 +80,23 @@ def process_csv_points():
             }
             result_viewshed = processing.run("visibility:viewshed", params_viewshed)
             viewshed_layer = QgsRasterLayer(result_viewshed['OUTPUT'], f"Viewshed_{nom_point}")
-
+            
             if viewshed_layer.isValid():
                 viewshed_layer.loadNamedStyle(VIEWSHED_STYLE_FILE_PATH)
-                viewshed_layer.setMaximumScale(1)
+                viewshed_layer.setBlendMode(QgsPainting.getCompositionMode(QgsPainting.BlendAddition))
+                # QgsRasterLayer.renderer(viewshed_layer).minMaxOrigin().setLimits(3)
+                
+                # print(QgsRasterLayer.renderer(viewshed_layer).minMaxOrigin().limits())
+                
                 viewshed_layer.triggerRepaint()
-
+                
                 # Save viewshed as GeoTIFF
                 output_file = os.path.join(OUTPUT_VIEWSHEDS_PATH, f"viewshed_{nom_point}.tif")
                 processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
 
                 QgsProject.instance().addMapLayer(viewshed_layer, False)
                 viewshed_group.addLayer(viewshed_layer)
-                break
+                
             else:
                 print(f"Viewshed analysis failed for {nom_point}")
     
