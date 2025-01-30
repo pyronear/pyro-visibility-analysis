@@ -1,5 +1,6 @@
 import csv
 import os
+import numpy as np
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsPointXY, QgsCoordinateReferenceSystem,
@@ -7,6 +8,8 @@ from qgis.core import (
 )
 from PyQt5.QtCore import QVariant
 from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+from PIL import Image
+from PIL.TiffTags import TAGS
 
 ## Constants
 DEFAULT_HEIGHT = 30  # in meters
@@ -98,8 +101,41 @@ def process_csv_points():
                 
             else:
                 print(f"Viewshed analysis failed for {nom_point}")
-    
+
+
+def display_area():
+    """
+    Display area for each viewpoint
+    """
+    for file_name in os.listdir(OUTPUT_VIEWSHEDS_PATH):
+        if file_name.endswith(".tif"):
+
+            # Ouvrir le fichier TIFF
+            tif_path = os.path.join(OUTPUT_VIEWSHEDS_PATH, file_name)
+            image = Image.open(tif_path)
+            
+            # Afficher les métadonnées
+            meta_data = {TAGS[key]: image.tag[key] for key in image.tag_v2}
+            print(f"Metadonnées pour {file_name}: {meta_data['ModelPixelScaleTag']}")
+            
+            raster_array = np.array(image)
+            
+            # Afficher un extrait des valeurs des pixels
+            print(f"Extrait des valeurs des pixels pour {file_name}:")
+            print(np.unique(raster_array))
+            white_pixels = np.sum(raster_array == 1)
+            print(f"Nombre de pixels blancs pour {file_name}: {white_pixels}")
+            
+            # Extraire la taille des pixels à partir des métadonnées
+            pixel_size = meta_data['ModelPixelScaleTag']
+            
+            # Calculer la surface en m²
+            surface = pixel_size[0] * pixel_size[1] * white_pixels
+            print(f"Surface couverte par la caméra sur {file_name}: {surface} m²\n")
+
 
 # Run the processing
 process_csv_points()
+print("viewpoints_over")
+display_area()
 print("Analysis complete")
