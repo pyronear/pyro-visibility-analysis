@@ -29,9 +29,9 @@ groupe_points = layer_tree_root.insertGroup(0, "Points_Hauts_Potentiels")
 viewshed_group = layer_tree_root.insertGroup(1, "Viewsheds")
  
 def process_csv_points():
- 
+    """
     Process CSV points to perform reprojection, viewshed, and area calculation.
- 
+    """
     with open(CSV_PATH, newline='', encoding='utf-8') as csvfile:
         lecteur_csv = csv.DictReader(csvfile, delimiter=';')
  
