@@ -1,13 +1,15 @@
 import csv
 import os
 import numpy as np
+"""
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsPointXY, QgsCoordinateReferenceSystem,
     QgsCoordinateTransform, QgsRasterLayer
 )
+"""
 from PyQt5.QtCore import QVariant
-from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
+#from qgis.analysis import QgsRasterCalculator, QgsRasterCalculatorEntry
 from PIL import Image
 from PIL.TiffTags import TAGS
 
@@ -24,14 +26,17 @@ OUTPUT_VIEWSHEDS_PATH = os.path.join(ANALYSIS_PATH, "Viewsheds_geotiff")
 os.makedirs(OUTPUT_VIEWSHEDS_PATH, exist_ok=True)
 
 ## Initialize groups
+"""
 layer_tree_root = QgsProject.instance().layerTreeRoot()
 groupe_points = layer_tree_root.insertGroup(0, "Points_Hauts_Potentiels")
 viewshed_group = layer_tree_root.insertGroup(1, "Viewsheds")
+"""
 
+"""
 def process_csv_points():
-    """
+
     Process CSV points to perform reprojection, viewshed, and area calculation.
-    """
+
     with open(CSV_PATH, newline='', encoding='utf-8') as csvfile:
         lecteur_csv = csv.DictReader(csvfile, delimiter=';')
 
@@ -101,7 +106,7 @@ def process_csv_points():
                 
             else:
                 print(f"Viewshed analysis failed for {nom_point}")
-
+"""
 
 def display_area():
     """
@@ -135,7 +140,7 @@ def display_area():
 
 
 # Run the processing
-process_csv_points()
+#{process_csv_points()
 print("viewpoints_over")
 display_area()
 print("Analysis complete")
