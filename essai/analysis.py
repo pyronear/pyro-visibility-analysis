@@ -101,5 +101,74 @@ def process_csv_points():
     
 
 # Run the processing
-process_csv_points()
-print("Analysis complete")
+# process_csv_points()
+# print("Analysis complete")
+
+
+from PIL import Image
+from PIL.TiffTags import TAGS
+import numpy as np 
+
+def display_area():
+    """
+    Display area for each viewpoint
+    """
+    for file_name in os.listdir(OUTPUT_VIEWSHEDS_PATH):
+        if file_name.endswith(".tif"):
+ 
+            # Ouvrir le fichier TIFF
+            tif_path = os.path.join(OUTPUT_VIEWSHEDS_PATH, file_name)
+            image = Image.open(tif_path)
+           
+            # Afficher les métadonnées
+            meta_data = {TAGS[key]: image.tag[key] for key in image.tag_v2}
+            print(f"Metadonnées pour {file_name}: {meta_data['ModelPixelScaleTag']}")
+           
+            raster_array = np.array(image)
+           
+            # Afficher un extrait des valeurs des pixels
+            print(f"Extrait des valeurs des pixels pour {file_name}:")
+            print(np.unique(raster_array))
+            white_pixels = np.sum(raster_array == 1)
+            print(f"Nombre de pixels blancs pour {file_name}: {white_pixels}")
+           
+            # Extraire la taille des pixels à partir des métadonnées
+            pixel_size = meta_data['ModelPixelScaleTag']
+           
+            # Calculer la surface en m²
+            surface = pixel_size[0] * pixel_size[1] * white_pixels
+            print(f"Surface couverte par la caméra sur {file_name}: {surface} m²\n")
+            
+            
+# display_area()
+# print("Analysis complete")
+
+def display_area_total():
+    """
+    Display area for total viewpoint
+    """
+    file_name ="fusion.tif"
+    # Ouvrir le fichier TIFF
+    tif_path = os.path.join(ANALYSIS_PATH, file_name)
+    image = Image.open(tif_path)
+    
+    # Afficher les métadonnées
+    meta_data = {TAGS[key]: image.tag[key] for key in image.tag_v2}
+    print(f"Metadonnées pour {file_name}: {meta_data['ModelPixelScaleTag']}")
+    
+    raster_array = np.array(image)
+    
+    # Afficher un extrait des valeurs des pixels
+    print(f"Extrait des valeurs des pixels pour {file_name}:")
+    print(np.unique(raster_array))
+    white_pixels = np.sum(raster_array == 1)
+    print(f"Nombre de pixels blancs pour {file_name}: {white_pixels}")
+    
+    # Extraire la taille des pixels à partir des métadonnées
+    pixel_size = meta_data['ModelPixelScaleTag']
+    
+    # Calculer la surface en m²
+    surface = pixel_size[0] * pixel_size[1] * white_pixels
+    print(f"Surface couverte par la caméra sur {file_name}: {surface} m²\n")
+
+display_area_total()
