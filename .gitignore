@@ -1,7 +1,1 @@
-.analysis_shape/normalized/
-.analysis_shape/normalized/*
-.analysis_shape/viewsheds_geotiff/
-.analysis_shape/viewsheds_geotiff/*
-.analysis_shape/src/__pycache__/
-.analysis_shape/src/__pycache__/*
 .analysis_shape/data/essai.qgz
