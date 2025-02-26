@@ -34,16 +34,14 @@ def display_tif(file):
         print("Erreur : Impossible d'ajouter le raster à QGIS.")
 
 def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 0
-    print("init")
     file_name =file_path.split("/")[-1].split(".")[0]
-    print(file_name)
     processing.run("gdal:rastercalculator", {'INPUT_A':file_path,'BAND_A':1,'INPUT_B':None,'BAND_B':None,
                                             'INPUT_C':None,'BAND_C':None,'INPUT_D':None,'BAND_D':None,
                                             'INPUT_E':None,'BAND_E':None,'INPUT_F':None,'BAND_F':None,
                                             'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
                                             'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
                                             'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
-    print("done")
+    print(f"Normalisation du raster terminée. Résultat enregistré sous {output_path}.")
     
 def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en une seule couche 
 

@@ -61,12 +61,13 @@ def process_csv_points(cvs_path, dem_path, elevation_style_file, output, layer_t
             viewpoint_layer = viewpoint_result['OUTPUT']
 
             # Run viewshed
+            output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
             params_viewshed = {
                 'ANALYSIS_TYPE': 0,
                 'OPERATOR': 0,
                 'DEM': dem_path,
                 'OBSERVER_POINTS': viewpoint_layer,
-                'OUTPUT': 'TEMPORARY_OUTPUT'
+                'OUTPUT': output_file
             }
             result_viewshed = processing.run("visibility:viewshed", params_viewshed)
             viewshed_layer = QgsRasterLayer(result_viewshed['OUTPUT'], f"Viewshed_{nom_point}")
@@ -80,12 +81,12 @@ def process_csv_points(cvs_path, dem_path, elevation_style_file, output, layer_t
                 
 
                 # Save viewshed as GeoTIFF
-                output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
-                processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
+                # output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
+                # processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
 
                 QgsProject.instance().addMapLayer(viewshed_layer, False)
                 viewshed_group.addLayer(viewshed_layer)
-                
+    
             else:
                 print(f"Viewshed analysis failed for {nom_point}")
     
