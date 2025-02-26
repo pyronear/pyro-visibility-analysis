@@ -3,9 +3,10 @@ import os
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsPointXY, QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform, QgsRasterLayer
+    QgsCoordinateTransform, QgsRasterLayer, QgsPainting
 )
 from PyQt5.QtCore import QVariant
+from qgis import processing
 
 ## Constants
 DEFAULT_HEIGHT = 30  # in meters

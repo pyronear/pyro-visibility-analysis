@@ -1,6 +1,7 @@
 import csv
 import os
 from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
+from qgis import processing
 
 def read_csv(file_path):
     with open(file_path, newline='', encoding='utf-8') as csvfile:
@@ -32,10 +33,18 @@ def display_tif(file):
     else:
         print("Erreur : Impossible d'ajouter le raster à QGIS.")
 
-def normalize(file_path, norm_viewsheds_path): # Remplace la valeur NaN des GeoTIFF par 0
-    file_name = file_path.split("/")[-1].split(".")[0]
-    processing.run("gdal:rastercalculator", {'INPUT_A':file_path,'BAND_A':1,'INPUT_B':None,'BAND_B':None,'INPUT_C':None,'BAND_C':None,'INPUT_D':None,'BAND_D':None,'INPUT_E':None,'BAND_E':None,'INPUT_F':None,'BAND_F':None,'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'','OUTPUT': os.path.join(norm_viewsheds_path, f"norm_{file_name}.tif")})
-
+def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 0
+    print("init")
+    file_name =file_path.split("/")[-1].split(".")[0]
+    print(file_name)
+    processing.run("gdal:rastercalculator", {'INPUT_A':file_path,'BAND_A':1,'INPUT_B':None,'BAND_B':None,
+                                            'INPUT_C':None,'BAND_C':None,'INPUT_D':None,'BAND_D':None,
+                                            'INPUT_E':None,'BAND_E':None,'INPUT_F':None,'BAND_F':None,
+                                            'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
+                                            'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
+                                            'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
+    print("done")
+    
 def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en une seule couche 
 
     norm_tif_files = [os.path.splitext(f)[0] for f in os.listdir(norm_tif_path) if f.endswith(".tif")]
@@ -56,3 +65,4 @@ def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en 
     })
 
     print(f"Fusion des rasters terminée. Résultat enregistré sous {output_fusion}.")
+    
