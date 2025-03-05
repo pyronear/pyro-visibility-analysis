@@ -41,9 +41,8 @@ def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 
                                             'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
                                             'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
                                             'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
-    print(f"Normalisation du raster terminée. Résultat enregistré sous {output_path}.")
     
-def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en une seule couche 
+def fusion(norm_tif_path, output_fusion, output_name): # Fusionne les GeoTIFF normalisés en une seule couche 
 
     norm_tif_files = [os.path.splitext(f)[0] for f in os.listdir(norm_tif_path) if f.endswith(".tif")]
     input_files = [os.path.join(norm_tif_path, f"{filename}.tif") for filename in norm_tif_files]
@@ -52,6 +51,9 @@ def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en 
     expression = " OR ".join([f'"{filename}@1"' for filename in norm_tif_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
 
+    output = os.path.join(output_fusion, output_name)
+    print(output)
+    
     # Exécution du calcul raster
     processing.run("native:rastercalc", {
         'LAYERS': input_files,
@@ -59,8 +61,8 @@ def fusion(norm_tif_path, output_fusion): # Fusionne les GeoTIFF normalisés en 
         'EXTENT': None,
         'CELL_SIZE': None,
         'CRS': QgsCoordinateReferenceSystem('IGNF:ED50UTM31.IGN69'),
-        'OUTPUT': output_fusion
+        'OUTPUT': output
     })
 
-    print(f"Fusion des rasters terminée. Résultat enregistré sous {output_fusion}.")
+    print(f"Fusion des rasters terminée. Résultat enregistré sous {output}.")
     
