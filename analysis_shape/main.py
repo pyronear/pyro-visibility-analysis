@@ -1,4 +1,5 @@
 import os 
+import csv
 
 # Imports des autres fichiers
 from src.viewshed import process_csv_points as viewsheds_create
@@ -22,7 +23,6 @@ NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")  # Doss
 os.makedirs(NORM_VIEWSHEDS_PATH, exist_ok=True)
 FUSION_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "fusion")
 os.makedirs(FUSION_PATH, exist_ok=True)
-
 layer_root = QgsProject.instance().layerTreeRoot()
 
 ## Créer les viewpoints et les viewsheds
@@ -47,10 +47,40 @@ layer_root = QgsProject.instance().layerTreeRoot()
 # print(f"Surface couverte par {"fusion.tif"}: {surface} m²\n")
 
 ## Pour chaque viewshed
-for file_name in os.listdir(VIEWSHEDS_PATH):
-    if file_name.endswith(".tif"):
-        file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
-        ## Calculer du pourcentage de surface couverte par rapport au total couvert
-        p_surface = coverage_out_of_total_coverage(file_path, file_name,os.path.join(FUSION_PATH, "fusion.tif"), "fusion.tif")
-        print(f"pourcentage de surface couverte par {file_name}: {p_surface*100} % \n")
-        break
+#for file_name in os.listdir(VIEWSHEDS_PATH):
+#    if file_name.endswith(".tif"):
+#        file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
+#        ## Calculer du pourcentage de surface couverte par rapport au total couvert
+#        p_surface = coverage_out_of_total_coverage(file_path, file_name,os.path.join(FUSION_PATH, "fusion.tif"), "fusion.tif")
+#        print(f"pourcentage de surface couverte par {file_name}: {p_surface*100} % \n")
+#        break
+def update_single(csv_path, viewsheds_path, name, value):
+    # Lire le CSV d'origine
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        lecteur_csv = csv.DictReader(csvfile, delimiter=';')
+        lignes = list(lecteur_csv)
+        
+        # Ajouter la nouvelle colonne "surface couverte"
+        colonnes = lecteur_csv.fieldnames + [name]
+
+    # Calculer les surfaces couvertes et mettre à jour les lignes
+    for ligne in lignes:
+        nom_point = ligne['Nom']
+        viewshed_file = os.path.join(viewsheds_path, f"viewshed_{nom_point}.tif")
+        if os.path.exists(viewshed_file):
+            surface = value(viewshed_file, f"viewshed_{nom_point}.tif")
+            ligne[name] = surface
+        else:
+            ligne[name] = "N/A"
+
+    with open(csv_path, mode='w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=colonnes, delimiter=';')
+        writer.writeheader()
+        writer.writerows(lignes)
+
+    
+
+def update_csv(csv_path, viewsheds_path):
+    update_single(csv_path, viewsheds_path, "Surface couverte", area_tif)
+    print(f"CSV mis à jour")
+update_csv(CSV_PATH, VIEWSHEDS_PATH)
