@@ -41,22 +41,17 @@ def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 
                                             'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
                                             'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
                                             'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
-    
-def fusion(norm_tif_path, output_fusion, output_name): # Fusionne les GeoTIFF normalisés en une seule couche 
 
-    norm_tif_files = [os.path.splitext(f)[0] for f in os.listdir(norm_tif_path) if f.endswith(".tif")]
-    input_files = [os.path.join(norm_tif_path, f"{filename}.tif") for filename in norm_tif_files]
-    
+
+def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
+
     # Correction de l'expression pour inclure les guillemets et "@1"
-    expression = " OR ".join([f'"{filename}@1"' for filename in norm_tif_files])
+    expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
-
-    output = os.path.join(output_fusion, output_name)
-    print(output)
     
     # Exécution du calcul raster
     processing.run("native:rastercalc", {
-        'LAYERS': input_files,
+        'LAYERS': norm_files,
         'EXPRESSION': expression,
         'EXTENT': None,
         'CELL_SIZE': None,
@@ -64,5 +59,49 @@ def fusion(norm_tif_path, output_fusion, output_name): # Fusionne les GeoTIFF no
         'OUTPUT': output
     })
 
-    print(f"Fusion des rasters terminée. Résultat enregistré sous {output}.")
+    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
+
+def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
+
+    # Correction de l'expression pour inclure les guillemets et "@1"
+    expression = " AND ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
+    expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
     
+    # Exécution du calcul raster
+    processing.run("native:rastercalc", {
+        'LAYERS': norm_files,
+        'EXPRESSION': expression,
+        'EXTENT': None,
+        'CELL_SIZE': None,
+        'CRS': QgsCoordinateReferenceSystem('IGNF:ED50UTM31.IGN69'),
+        'OUTPUT': output
+    })
+
+    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
+
+## Ajout de la colonne "name" qui effectue l'analyse "fct" au csv
+def update_single(csv_path, viewsheds_path, name, fct):
+    # Lire le CSV d'origine
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        lecteur_csv = csv.DictReader(csvfile, delimiter=';')
+        lignes = list(lecteur_csv)
+        
+        # Vérifier si la colonne existe déjà
+        colonnes = lecteur_csv.fieldnames
+        if name not in colonnes:
+            colonnes.append(name)  # Ajouter la colonne uniquement si elle n'existe pas
+
+    # Calculer les surfaces couvertes et mettre à jour les lignes
+    for ligne in lignes:
+        nom_point = ligne['Nom']
+        viewshed_file = os.path.join(viewsheds_path, f"viewshed_{nom_point}.tif")
+        if os.path.exists(viewshed_file):
+            surface = fct(viewshed_file, f"viewshed_{nom_point}.tif")
+            ligne[name] = surface
+        else:
+            ligne[name] = "N/A"
+
+    with open(csv_path, mode='w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=colonnes, delimiter=';')
+        writer.writeheader()
+        writer.writerows(lignes)
