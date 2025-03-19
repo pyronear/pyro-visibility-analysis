@@ -1,28 +1,28 @@
-Nom;Lieu dit;Latitude;Longitude;Propriétaire;Altitude;Hauteur (m);commentaire
-Albé;;48.358;7.3165;CeA;;30;
-Altenberg;Petite Pierre;48.853;7.319;SFR;;36;
-Bellefosse;Champ du Feu;48.393;7.2696;CeA;;43;
-Bernardvillé;;48.3686;7.4026;CeA;;35;
-Champs du feu ;;48.39575;7.2691;;1099m;45;supposition point carto radio https://www.cartoradio.fr/index.html#/cartographie/lonlat/7.2691/48.39575 EDF GDF )>45m
-Chapelle Notre Dame des Tilleuls;Surbourg. RD 264;48.91869;7.85909;;;;hauteur non trouvé
-Château de Lichtenberg;;48.92138;7.78649;;414m;;hauteur non trouvé
-Château du Haut Barr;Saverne;48.725;7.338;SDIS;470m;34.5;
-Château du Hunebourg;;48.8338;7.36439;ONF;425m;;hauteur non trouvé
-Dambach-Windstein (Niederbronn);Bisenplatz;48.9841;7.6722;CeA;;40;
-Eckartswiller;Heidenhuebel;48.8723;7.3644;CeA;;30;
-FC Lampertsloch;;48.96374;7.80804;;;;hauteur non trouvé
-Forlenwald;Oberhoffen sur Moder;48.783;7.875;TDF;;36;
-Goerlingen;Burgerwald;48.7999;7.0935;CeA;;45;
-Grand Wintersberg;Niederbronn les Bains;48.978;7.615;Totem;;52;
-Hochwald;Domfessel;48.95;7.122;Totem;;56;
-Langensoultzbach;Vorderer Steinberg;48.9665;7.7381;CeA;;40;
-Le Donon;Grandfontaine;48.51;7.161;CeA;;50;
-Lorentzen;Ferme Sainte Madeleine;48.9689;7.1691;CeA;;30;
-Osterlamm Déchetterie;Krautergersheim;48.482;7.57;Totem;;38.8;
-Pfriemenkopf;Natzwiller;48.45;7.253;Hivory;;30;
-Rocher du coucou;Neubois;48.295;7.312;CeA;;45;
-Site du Kirchberg;Drulingen;48.900034;7.1457;;;29;
-Tour du chemin des cimes;Drachenbronn;48.98615;7.85739;;323m;29;
-Tour du Wintersberg;;48.97879;7.61465;CV;581m;25;
-Tour exercice Haguenau;;48.81839;7.79124;;;;
-Tour TDF du Donon;;48.51399;7.16477;TDF;1009m;84;
+Nom;Lieu dit;Latitude;Longitude;Propriétaire;Altitude;Hauteur (m);commentaire;colonne_test
+Albé;;48.358;7.3165;CeA;;30;;colonne_testoui
+Altenberg;Petite Pierre;48.853;7.319;SFR;;36;;colonne_testoui
+Bellefosse;Champ du Feu;48.393;7.2696;CeA;;43;;colonne_testoui
+Bernardvillé;;48.3686;7.4026;CeA;;35;;colonne_testoui
+Champs du feu ;;48.39575;7.2691;;1099m;45;supposition point carto radio https://www.cartoradio.fr/index.html#/cartographie/lonlat/7.2691/48.39575 EDF GDF )>45m;colonne_testoui
+Chapelle Notre Dame des Tilleuls;Surbourg. RD 264;48.91869;7.85909;;;;hauteur non trouvé;colonne_testoui
+Château de Lichtenberg;;48.92138;7.78649;;414m;;hauteur non trouvé;colonne_testoui
+Château du Haut Barr;Saverne;48.725;7.338;SDIS;470m;34.5;;colonne_testoui
+Château du Hunebourg;;48.8338;7.36439;ONF;425m;;hauteur non trouvé;colonne_testoui
+Dambach-Windstein (Niederbronn);Bisenplatz;48.9841;7.6722;CeA;;40;;colonne_testoui
+Eckartswiller;Heidenhuebel;48.8723;7.3644;CeA;;30;;colonne_testoui
+FC Lampertsloch;;48.96374;7.80804;;;;hauteur non trouvé;colonne_testoui
+Forlenwald;Oberhoffen sur Moder;48.783;7.875;TDF;;36;;colonne_testoui
+Goerlingen;Burgerwald;48.7999;7.0935;CeA;;45;;colonne_testoui
+Grand Wintersberg;Niederbronn les Bains;48.978;7.615;Totem;;52;;colonne_testoui
+Hochwald;Domfessel;48.95;7.122;Totem;;56;;colonne_testoui
+Langensoultzbach;Vorderer Steinberg;48.9665;7.7381;CeA;;40;;colonne_testoui
+Le Donon;Grandfontaine;48.51;7.161;CeA;;50;;colonne_testoui
+Lorentzen;Ferme Sainte Madeleine;48.9689;7.1691;CeA;;30;;colonne_testoui
+Osterlamm Déchetterie;Krautergersheim;48.482;7.57;Totem;;38.8;;colonne_testoui
+Pfriemenkopf;Natzwiller;48.45;7.253;Hivory;;30;;colonne_testoui
+Rocher du coucou;Neubois;48.295;7.312;CeA;;45;;colonne_testoui
+Site du Kirchberg;Drulingen;48.900034;7.1457;;;29;;colonne_testoui
+Tour du chemin des cimes;Drachenbronn;48.98615;7.85739;;323m;29;;colonne_testoui
+Tour du Wintersberg;;48.97879;7.61465;CV;581m;25;;colonne_testoui
+Tour exercice Haguenau;;48.81839;7.79124;;;;;colonne_testoui
+Tour TDF du Donon;;48.51399;7.16477;TDF;1009m;84;;colonne_testoui

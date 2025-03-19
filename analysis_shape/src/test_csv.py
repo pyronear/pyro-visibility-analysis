@@ -1,85 +1,10 @@
 import csv
 import os
-from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
-from qgis import processing
 import subprocess
 
-def read_csv(file_path):
-    with open(file_path, newline='', encoding='utf-8') as csvfile:
-        return list(csv.DictReader(csvfile, delimiter=';'))
-
-
-def display_tif(file):
-    layer_name = os.path.splitext(os.path.basename(file))[0]
-    raster_layer = QgsRasterLayer(file, layer_name)
-    root = QgsProject.instance().layerTreeRoot()
-    
-    # Vérifier si le raster est valide et l'ajouter à QGIS
-    if raster_layer.isValid():
-        # Trouver la couche existante 'dem_file_projected' dans le projet
-        dem_layer = QgsProject.instance().mapLayersByName("dem_file_projected")
-        
-        if dem_layer:
-            # Récupérer le CRS de la couche 'dem_file_projected'
-            crs = dem_layer[0].crs()
-            print(f"Le CRS de la couche 'dem_file_projected' est {crs.authid()}.")
-            
-            # Appliquer le CRS de la couche 'dem_file_projected' à la nouvelle couche
-            raster_layer.setCrs(crs)
-        
-        QgsProject.instance().addMapLayer(raster_layer, False)
-        group = root.insertGroup(0, "Viewsheds_merged")
-        group.addLayer(raster_layer)
-        print(f"Le raster {layer_name} a été ajouté à QGIS.")
-        
-    else:
-        print("Erreur : Impossible d'ajouter le raster à QGIS.")
-
-def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 0
-    file_name =file_path.split("/")[-1].split(".")[0]
-    processing.run("gdal:rastercalculator", {'INPUT_A':file_path,'BAND_A':1,'INPUT_B':None,'BAND_B':None,
-                                            'INPUT_C':None,'BAND_C':None,'INPUT_D':None,'BAND_D':None,
-                                            'INPUT_E':None,'BAND_E':None,'INPUT_F':None,'BAND_F':None,
-                                            'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
-                                            'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
-                                            'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
-
-
-def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
-
-    # Correction de l'expression pour inclure les guillemets et "@1"
-    expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
-    expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
-    
-    # Exécution du calcul raster
-    processing.run("native:rastercalc", {
-        'LAYERS': norm_files,
-        'EXPRESSION': expression,
-        'EXTENT': None,
-        'CELL_SIZE': None,
-        'CRS': QgsCoordinateReferenceSystem('IGNF:ED50UTM31.IGN69'),
-        'OUTPUT': output
-    })
-
-    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
-
-def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
-
-    # Correction de l'expression pour inclure les guillemets et "@1"
-    expression = " AND ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
-    expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
-    
-    # Exécution du calcul raster
-    processing.run("native:rastercalc", {
-        'LAYERS': norm_files,
-        'EXPRESSION': expression,
-        'EXTENT': None,
-        'CELL_SIZE': None,
-        'CRS': QgsCoordinateReferenceSystem('IGNF:ED50UTM31.IGN69'),
-        'OUTPUT': output
-    })
-
-    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
+PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DATA_PATH = os.path.join(PATH, "data")
+CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv")
 
 def create_csv(path, filename):
     """Lit un fichier CSV, extrait certaines colonnes et les écrit dans un nouveau fichier CSV avec des valeurs pour chaque ligne."""
@@ -107,7 +32,7 @@ def create_csv(path, filename):
 
 import csv
 
-def wright_csv(filename, colonne_name, values):
+def write_csv(filename, colonne_name, values):
     """Ajoute des colonnes spécifiées dans le fichier CSV, sans perdre les lignes existantes."""
     try:
         # Lire le fichier CSV source pour récupérer les données existantes
@@ -188,3 +113,26 @@ def open_excel(filename):
         print(f"✅ Le fichier {filename} a été ouvert dans Excel.")
     except Exception as e:
         print(f"❌ Erreur lors de l'ouverture du fichier : {e}")
+
+
+
+
+def main():
+    fichier = "mon_fichier.csv"
+
+    # Création du fichier avec en-têtes
+    create_csv(CSV_PATH, fichier)
+
+    open_excel_and_process(fichier)
+
+    test = {
+    "Barr": [8]
+    }
+    write_csv(fichier, ["remplissage"], test)
+    # Ouvrir le fichier avec Excel et attendre sa fermeture
+
+    open_excel(fichier)
+    
+
+if __name__ == "__main__":
+    main()
