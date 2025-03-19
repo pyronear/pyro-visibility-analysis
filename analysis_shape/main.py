@@ -47,12 +47,19 @@ norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f 
 fusion_or(norm_tif_files, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
 
+
 # Afficher la surface totale couverte par l'ensemble des viewsheds sur une couche QGIS
 display_tif(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
+## Dictionnaire avec les valeurs de sortie
+output = {} 
+
 # Calculer la surface totale couverte
-surface = coverage(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
-print(f"Surface totale couverte : {surface} m²\n")
+for path in norm_tif_files:
+    name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+    
+    output[name] = {"Surface" : coverage(path)}
+    print(f"Surface couverte par {name} ajoutée au dictionnaire")
 
 ## Dictionnaire avec les valeurs de sortie
 output = {} 
