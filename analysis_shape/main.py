@@ -4,7 +4,7 @@ import csv
 # Imports des autres fichiers
 from src.viewshed import process_csv_points as viewsheds_create
 from src.area_analysis import coverage, coverage_out_of_total_coverage, reccurent_coverage
-from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single
+from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single, write_csv, create_csv, open_excel_and_process, open_excel
 
 from qgis.core import QgsProject
 
@@ -49,21 +49,23 @@ output = {}
 for path in norm_tif_files:
     name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
     
-    output[name] = {"Surface" : coverage(path)}
-    print(f"Surface couverte par {name} ajoutée au dictionnaire")
+    output[name] = {}
+    output[name]["Surface"] = coverage(path)
 
-    output[name] = {"p_surface" : coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))}
-    print(f"% de Surface couverte par {name} ajoutée au dictionnaire")
+    output[name]["p_surface"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
     other_paths = [x for x in norm_tif_files if x != path]
-    print(other_paths)
-    fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
-    fusion_and([path, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif")],os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
+    # fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
+    # fusion_and([path, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif")],os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
 
-    output[name] = {"r_surface" : reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))}
-    print(f"% de Surface déjà couverte par {name} ajoutée au dictionnaire")
+    output[name]["r_surface"] = reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
+    print(f"{name} ajouté au dictionnaire")
 
-print(output.keys())
+fichier = "output.csv"
+create_csv(CSV_PATH, fichier)
+open_excel_and_process(fichier)
+write_csv(fichier, output)
+open_excel(fichier)
 
 # # Calculer la surface totale couverte
 # surface = coverage(os.path.join(FUSION_PATH, "fusion_or_all.tif"))

@@ -131,9 +131,7 @@ def create_csv(path, filename):
     except Exception as e:
         print(f"❌ Erreur lors de la lecture ou de l'écriture du fichier : {e}")
 
-import csv
-
-def wright_csv(filename, colonne_name, values):
+def write_csv(filename, dict_values):
     """Ajoute des colonnes spécifiées dans le fichier CSV, sans perdre les lignes existantes."""
     try:
         # Lire le fichier CSV source pour récupérer les données existantes
@@ -142,30 +140,42 @@ def wright_csv(filename, colonne_name, values):
             rows = list(reader)  # Lire toutes les lignes du fichier
             header = rows[0]  # L'en-tête (première ligne)
 
-            # Ajouter les nouvelles colonnes spécifiées à l'en-tête
-            header.extend(colonne_name)
+            # Récupérer dynamiquement les nouvelles colonnes à ajouter
+            keys = list(next(iter(dict_values.values())).keys())  
+            
+            # Vérifier et ajouter les nouvelles colonnes à l'en-tête si elles n'existent pas
+            existing_columns = set(header)
+            new_columns = [col for col in keys if col not in existing_columns]
+            header.extend(new_columns)
 
-            # Ajouter les nouvelles colonnes à chaque ligne existante
-            for row in rows[1:]:  # Ignorer la première ligne (en-tête)
-                nom = row[0]  # On suppose que le 'Nom' est dans la première colonne
-                # Vérifier si le 'nom' est présent dans le dictionnaire de valeurs
-                if nom in values:
-                    row.extend(values[nom])  # Ajouter la valeur correspondante pour ce nom
-                else:
-                    # Ajouter une valeur vide si le nom n'est pas trouvé dans le dictionnaire
-                    row.extend([''] * len(colonne_name))
+            # Créer une nouvelle liste de lignes avec les valeurs mises à jour
+            updated_rows = [header]  
 
-        # Ouvrir le fichier en mode écriture pour ajouter les colonnes
+            for row in rows[1:]:  # Ignorer l'en-tête
+                nom = row[0]  # Supposons que le 'Nom' est dans la première colonne
+                
+                # Récupérer les valeurs de dict_values ou remplir avec des valeurs vides
+                values_to_add = [str(dict_values[nom][col]) if nom in dict_values else '' for col in keys]
+
+                # Compléter la ligne avec des valeurs vides si elle était plus courte que l'en-tête
+                row.extend([''] * (len(header) - len(row)))
+
+                # Ajouter les nouvelles valeurs aux bonnes colonnes
+                for i, col in enumerate(keys):
+                    row[header.index(col)] = values_to_add[i]
+
+                updated_rows.append(row)
+
+        # Ouvrir le fichier en mode écriture pour enregistrer les changements
         with open(filename, mode="w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file, delimiter=";")
-            writer.writerow(header)  # Réécrire l'en-tête avec les nouvelles colonnes
-            writer.writerows(rows[1:])  # Réécrire les lignes de données existantes avec les nouvelles colonnes
+            writer.writerows(updated_rows)  # Écrire toutes les lignes (header + données mises à jour)
 
-        print(f"✅ Colonnes {colonne_name} ajoutées au fichier : {filename}")
+        print(f"✅ Colonnes {new_columns} ajoutées et fichier mis à jour : {filename}")
 
     except Exception as e:
-        print(f"❌ Erreur lors de l'ajout des colonnes : {e}")
-
+        print(f"❌ Erreur lors de la mise à jour du fichier CSV : {e}")
+        
 
 def open_excel_and_process(filename):
     """Ouvre le fichier CSV directement avec excel.exe et attend sa fermeture."""
@@ -186,7 +196,6 @@ def open_excel_and_process(filename):
         process.wait()  # Attend la fermeture de l'application
 
         print(f"✅ Le fichier {filename} a été fermé.")
-        check()
     except Exception as e:
         print(f"❌ Erreur lors de l'ouverture du fichier : {e}")
 
