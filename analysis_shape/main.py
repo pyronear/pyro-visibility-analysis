@@ -4,7 +4,7 @@ import csv
 # Imports des autres fichiers
 from src.viewshed import process_csv_points as viewsheds_create
 from src.area_analysis import coverage, coverage_out_of_total_coverage, reccurent_coverage
-from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single
+from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single, write_csv, create_csv, open_excel_and_process, open_excel
 
 from qgis.core import QgsProject
 
@@ -28,11 +28,6 @@ layer_root = QgsProject.instance().layerTreeRoot()
 viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH,elevation_style_file = ELEVATION_MODEL_PATH,output = VIEWSHEDS_PATH, layer_tree_root = layer_root) # Afficher les surfaces pour chaque point haut
 
 
-# # Calculer la surface couverte
-# update_single(CSV_PATH, VIEWSHEDS_PATH, "Surface couverte", coverage)
-# print(f"CSV mis à jour")
-
-
 # Créer une version normalisée des viewsheds pour pouvoir faire le calcul total 
 for file_name in os.listdir(VIEWSHEDS_PATH):
     if file_name.endswith(".tif"):
@@ -43,6 +38,7 @@ for file_name in os.listdir(VIEWSHEDS_PATH):
 norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f in os.listdir(NORM_VIEWSHEDS_PATH) if f.endswith(".tif")]
 fusion_or(norm_tif_files, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
+
 # Afficher la surface totale couverte par l'ensemble des viewsheds sur une couche QGIS
 display_tif(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
@@ -50,12 +46,27 @@ display_tif(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 surface = coverage(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 print(f"Surface totale couverte : {surface} m²\n")
 
+## Dictionnaire avec les valeurs de sortie
+output = {} 
 
-# Tester la fonction coverage_out_of_total_coverage
-p_surface = coverage_out_of_total_coverage(norm_tif_files[0], os.path.join(FUSION_PATH, "fusion_or_all.tif"))
-print(f"pourcentage de surface couverte par {norm_tif_files[0].split("/")[-1]}: {p_surface*100} % \n")
+# Calculer la surface totale couverte
+for path in norm_tif_files:
+    name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+    
+    output[name] = {}
+    output[name]["Surface"] = coverage(path)
 
-# Tester la fonction reccurent_coverage 
-fusion_and([norm_tif_files[0], os.path.join(FUSION_PATH, "fusion_or_all.tif")],os.path.join(FUSION_PATH, "fusion_and_test.tif"))
-r_surface = reccurent_coverage(norm_tif_files[0],os.path.join(FUSION_PATH, "fusion_and_test.tif"))
-print(f"pourcentage couvert par {norm_tif_files[0].split("/")[-1]} déjà couverte: {r_surface*100} % \n")
+    output[name]["p_surface"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
+
+    other_paths = [x for x in norm_tif_files if x != path]
+    fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
+    fusion_and([path, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif")],os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
+
+    output[name]["r_surface"] = reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
+    print(f"{name} ajouté au dictionnaire")
+
+fichier = "output.csv"
+create_csv(CSV_PATH, fichier)
+open_excel_and_process(fichier)
+write_csv(fichier, output)
+open_excel(fichier)
