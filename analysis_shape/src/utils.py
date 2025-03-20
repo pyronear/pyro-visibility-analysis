@@ -86,18 +86,22 @@ def read_csv(csv_path):    # return a list of all lines of the csv at csv_path a
 
 def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it with data in the list of dictionaries list_dic
     try:
-        columns = list_dic[0].keys()
+        data = transform_dic(list_dic)
+        columns = data[0].keys()
         with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
             writer.writeheader()
-            writer.writerows(list_dic)
+            writer.writerows(data)
             
     except Exception as e:
         print(f"❌ Error while writing data from list_dic {list_dic} into csv at {csv_path} : {e}")
 
 def transform_dic(dic):    # transform a dictionary dic with keys which are names, into a list of dictionaries with a added "name" key
     try:
-        return [{"Nom": name, **info} for name, info in dic.items()]
+        if isInstance(dic, dict):
+            return [{"Nom": name, **info} for name, info in dic.items()]
+        else:
+            return dic
 
     except Exception as e:
         print(f"❌ Error while transforming the dic {dic} : {e}")
