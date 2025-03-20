@@ -22,6 +22,8 @@ os.makedirs(NORM_VIEWSHEDS_PATH, exist_ok=True)
 FUSION_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "fusion")
 os.makedirs(FUSION_PATH, exist_ok=True)
 layer_root = QgsProject.instance().layerTreeRoot()
+OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
+
 
 
 # Créer les viewpoints et les viewsheds
@@ -65,8 +67,6 @@ for path in norm_tif_files:
     output[name]["r_surface"] = reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
     print(f"{name} ajouté au dictionnaire")
 
-fichier = "output.csv"
-create_csv(CSV_PATH, fichier)
-open_excel_and_process(fichier)
-write_csv(fichier, output)
-open_excel(fichier)
+columns = ["Nom", "Latitude", "Longitude", "Hauteur"]
+create_template(CSV_PATH, OUTPUT_PATH, columns)
+write_data(OUTPUT_PATH, transform_dic(output))
