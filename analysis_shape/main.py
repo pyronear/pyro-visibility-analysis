@@ -69,4 +69,4 @@ for path in norm_tif_files:
 
 columns = ["Nom", "Latitude", "Longitude", "Hauteur"]
 create_template(CSV_PATH, OUTPUT_PATH, columns)
-write_data(OUTPUT_PATH, transform_dic(output))
+write_data(OUTPUT_PATH, output)
