@@ -35,7 +35,7 @@ OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
 viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH, elevation_style_file = ELEVATION_MODEL_PATH, output = VIEWSHEDS_PATH, layer_tree_root = layer_root)
 
 
-# Create a normalized version of the viewsheds to compute area covered
+# Créer une version normalisée des viewsheds pour pouvoir faire le calcul total 
 for file_name in os.listdir(VIEWSHEDS_PATH):
     if file_name.endswith(".tif"):
         file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
@@ -44,6 +44,7 @@ for file_name in os.listdir(VIEWSHEDS_PATH):
 # Create a fusion file to compute total area covered
 norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f in os.listdir(NORM_VIEWSHEDS_PATH) if f.endswith(".tif")]
 fusion_or(norm_tif_files, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
+
 
 # Afficher la surface totale couverte par l'ensemble des viewsheds sur une couche QGIS
 display_tif(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
