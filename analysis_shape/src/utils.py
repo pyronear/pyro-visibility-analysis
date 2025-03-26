@@ -2,6 +2,11 @@ import csv
 import os
 from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
 from qgis import processing
+import subprocess
+
+def read_csv(file_path):
+    with open(file_path, newline='', encoding='utf-8') as csvfile:
+        return list(csv.DictReader(csvfile, delimiter=';'))
 
 def display_tif(file):
     layer_name = os.path.splitext(os.path.basename(file))[0]
@@ -45,7 +50,7 @@ def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seu
     if os.path.exists(output):
         print(f"⚠ Le fichier {output} existe déjà. Pass.")
         return
-    
+
     # Correction de l'expression pour inclure les guillemets et "@1"
     expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
@@ -85,50 +90,146 @@ def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une se
 
     print(f"Fusion AND des rasters terminée. Résultat enregistré sous {output}.")
 
-def read_csv(csv_path):    # return a list of all lines of the csv at csv_path as dictionaries with the same keys (the columns)
-    try:
-        with open(csv_path, mode="r", newline="", encoding="utf-8") as csv_file:
-            reader = list(csv.DictReader(csv_file, delimiter=';')) # watchout for the delimiter
-        return reader
+## Ajout de la colonne "name" qui effectue l'analyse "fct" au csv
+def update_single(csv_path, viewsheds_path, name, fct):
+    # Lire le CSV d'origine
+    with open(csv_path, newline='', encoding='utf-8') as csvfile:
+        lecteur_csv = csv.DictReader(csvfile, delimiter=';')
+        lignes = list(lecteur_csv)
+        
+        # Vérifier si la colonne existe déjà
+        colonnes = lecteur_csv.fieldnames
+        if name not in colonnes:
+            colonnes.append(name)  # Ajouter la colonne uniquement si elle n'existe pas
 
-    except Exception as e:
-        print(f"❌ Error while reading the csv at {csv_path} : {e}")
-
-def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it with data in the list of dictionaries list_dic
-    try:
-        data = transform_dic(list_dic)
-        columns = data[0].keys()
-        with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
-            writer.writeheader()
-            writer.writerows(data)
-            
-    except Exception as e:
-        print(f"❌ Error while writing data from list_dic {list_dic} into csv at {csv_path} : {e}")
-
-def transform_dic(dic):    # transform a dictionary dic with keys which are names, into a list of dictionaries with a added "name" key
-    try:
-        if isInstance(dic, dict):
-            return [{"Nom": name, **info} for name, info in dic.items()]
+    # Calculer les surfaces couvertes et mettre à jour les lignes
+    for ligne in lignes:
+        nom_point = ligne['Nom']
+        viewshed_file = os.path.join(viewsheds_path, f"viewshed_{nom_point}.tif")
+        if os.path.exists(viewshed_file):
+            surface = fct(viewshed_file, f"viewshed_{nom_point}.tif")
+            ligne[name] = surface
         else:
-            return dic
+            ligne[name] = "N/A"
 
-    except Exception as e:
-        print(f"❌ Error while transforming the dic {dic} : {e}")
-
-def filter_list_dic(list_dic, list_columns):    # filter a list of dictionaries list_dic to only have certain columns contained in the list of columns list_columns
+    with open(csv_path, mode='w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=colonnes, delimiter=';')
+        writer.writeheader()
+        writer.writerows(lignes)
+        
+def create_csv(path, filename):
+    """Lit un fichier CSV, extrait certaines colonnes et les écrit dans un nouveau fichier CSV avec des valeurs pour chaque ligne."""
     try:
-        list_columns_clean = [col.lower() for col in list_columns]
-        return [{col: row[col] for col in row if any(column in col.lower() for column in list_columns_clean)} for row in list_dic]
+        # Lire le fichier CSV source en utilisant ; comme délimiteur
+        with open(path, mode="r", newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file, delimiter=";")  # Spécifier le délimiteur ici
+            # Colonnes recherchées
+            colonnes_voulues = ["Nom", "Latitude", "Longitude", "Hauteur (m)"]  # Mettre le nom exact de la colonne
+
+            # Créer un fichier CSV de destination avec ; comme délimiteur
+            with open(filename, mode="w", newline="", encoding="utf-8") as new_file:
+                writer = csv.writer(new_file, delimiter=";")  # Utiliser un point-virgule aussi pour le fichier destination
+                # Écrire l'en-tête
+                writer.writerow(colonnes_voulues)
+                # Pour chaque ligne, filtrer et écrire les données des colonnes voulues
+                for row in list(reader):
+                    # Extraire uniquement les colonnes présentes dans le fichier source
+                    ligne = [row[col] for col in row if col in colonnes_voulues]
+                    writer.writerow(ligne)
+
+        print(f"✅ Fichier créé avec les colonnes filtrées et les valeurs : {filename}")
+    except Exception as e:
+        print(f"❌ Erreur lors de la lecture ou de l'écriture du fichier : {e}")
+
+def write_csv(filename, dict_values):
+    """Ajoute des colonnes spécifiées dans le fichier CSV, sans perdre les lignes existantes."""
+    try:
+        # Lire le fichier CSV source pour récupérer les données existantes
+        with open(filename, mode="r", newline="", encoding="utf-8") as file:
+            reader = csv.reader(file, delimiter=";")
+            rows = list(reader)  # Lire toutes les lignes du fichier
+            header = rows[0]  # L'en-tête (première ligne)
+
+            # Récupérer dynamiquement les nouvelles colonnes à ajouter
+            keys = list(next(iter(dict_values.values())).keys())  
+            
+            # Vérifier et ajouter les nouvelles colonnes à l'en-tête si elles n'existent pas
+            existing_columns = set(header)
+            new_columns = [col for col in keys if col not in existing_columns]
+            header.extend(new_columns)
+
+            # Créer une nouvelle liste de lignes avec les valeurs mises à jour
+            updated_rows = [header]  
+
+            for row in rows[1:]:  # Ignorer l'en-tête
+                nom = row[0]  # Supposons que le 'Nom' est dans la première colonne
+                
+                # Récupérer les valeurs de dict_values ou remplir avec des valeurs vides
+                values_to_add = [str(dict_values[nom][col]) if nom in dict_values else '' for col in keys]
+
+                # Compléter la ligne avec des valeurs vides si elle était plus courte que l'en-tête
+                row.extend([''] * (len(header) - len(row)))
+
+                # Ajouter les nouvelles valeurs aux bonnes colonnes
+                for i, col in enumerate(keys):
+                    row[header.index(col)] = values_to_add[i]
+
+                updated_rows.append(row)
+
+        # Ouvrir le fichier en mode écriture pour enregistrer les changements
+        with open(filename, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter=";")
+            writer.writerows(updated_rows)  # Écrire toutes les lignes (header + données mises à jour)
+
+        print(f"✅ Colonnes {new_columns} ajoutées et fichier mis à jour : {filename}")
 
     except Exception as e:
-        print(f"❌ Error while filtering the list of dic {list_dic} with columns {list_columns} : {e}")
+        print(f"❌ Erreur lors de la mise à jour du fichier CSV : {e}")
+        
 
-def create_template(csv_path, output_path, list_columns):
-    try: 
-        reader = read_csv(csv_path)
-        filter_dic = filter_list_dic(reader,list_columns)
-        write_data(output_path, filter_dic)
-    
+def open_excel_and_process(filename):
+    """Ouvre le fichier CSV directement avec excel.exe et attend sa fermeture."""
+    filepath = os.path.abspath(filename)
+    try:
+        print(f"📂 Tentative d'ouverture avec Excel : {filepath}")
+
+        # Vérifier si Excel est bien installé
+        excel_path = r"C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE"  # Modifier si nécessaire
+        if not os.path.exists(excel_path):
+            excel_path = r"C:\Program Files (x86)\Microsoft Office\root\Office16\EXCEL.EXE"  # Version 32 bits
+        if not os.path.exists(excel_path):
+            print("⚠️ Excel introuvable, vérifiez son installation.")
+            return
+
+        # Lancer Excel en lui passant le fichier CSV
+        process = subprocess.Popen([excel_path, filepath])
+        process.wait()  # Attend la fermeture de l'application
+
+        print(f"✅ Le fichier {filename} a été fermé.")
     except Exception as e:
-        print(f"❌ Error while creating a template from input csv at {input_path} in output csv at {output_path} while looking only at columns {list_columns} : {e}")
+        print(f"❌ Erreur lors de l'ouverture du fichier : {e}")
+
+def check():
+    """Fonction exécutée après la fermeture d'Excel."""
+    print("🔍 Vérification : Tout est OK !")
+
+def open_excel(filename):
+    """Ouvre le fichier CSV directement avec Excel sans attendre sa fermeture."""
+    filepath = os.path.abspath(filename)
+    try:
+        print(f"📂 Tentative d'ouverture avec Excel : {filepath}")
+
+        # Vérifier si Excel est bien installé
+        excel_path = r"C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE"  # Modifier si nécessaire
+        if not os.path.exists(excel_path):
+            excel_path = r"C:\Program Files (x86)\Microsoft Office\root\Office16\EXCEL.EXE"  # Version 32 bits
+        if not os.path.exists(excel_path):
+            print("⚠️ Excel introuvable, vérifiez son installation.")
+            return
+
+        # Lancer Excel en lui passant le fichier CSV sans attendre la fermeture
+        subprocess.Popen([excel_path, filepath])
+
+        print(f"✅ Le fichier {filename} a été ouvert dans Excel.")
+    except Exception as e:
+        print(f"❌ Erreur lors de l'ouverture du fichier : {e}")
