@@ -11,7 +11,7 @@ from qgis import processing
 ## Constants
 DEFAULT_HEIGHT = 30  # in meters
 
-def process_csv_points(cvs_path, dem_path, elevation_style_file, output, layer_tree_root):
+def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tree_root):
     """
     Process CSV points to perform reprojection, viewshed, and area calculation.
     """
