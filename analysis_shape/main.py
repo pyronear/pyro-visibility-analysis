@@ -1,40 +1,48 @@
-import os 
 import csv
+import os
 
 # Imports des autres fichiers
-from src.viewshed import process_csv_points as viewsheds_create
+from src.viewshed import viewsheds_create
 from src.area_analysis import coverage, coverage_out_of_total_coverage, reccurent_coverage
 from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single, write_csv, create_csv, open_excel_and_process, open_excel
 
 from qgis.core import QgsProject
 
-# Chemin de base
+# Setup
+
 VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
-# Chemins relatifs 
 DATA_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data")
-ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")
-CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv")
+
+ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")   # To modify if needed
+
+CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv") # To modify id needed
+
 DEM_PROJECTED_PATH = os.path.join(DATA_PATH, "dem_file_projected.tif")
+
 VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "viewsheds_geotiff")
 os.makedirs(VIEWSHEDS_PATH, exist_ok=True)
-NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")  # Dossier pour stocker les rasters normalisés
+
+NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")
 os.makedirs(NORM_VIEWSHEDS_PATH, exist_ok=True)
+
 FUSION_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "fusion")
 os.makedirs(FUSION_PATH, exist_ok=True)
+
 layer_root = QgsProject.instance().layerTreeRoot()
 
+OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
 
-# Créer les viewpoints et les viewsheds
-viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH,elevation_style_file = ELEVATION_MODEL_PATH,output = VIEWSHEDS_PATH, layer_tree_root = layer_root) # Afficher les surfaces pour chaque point haut
+# Create viewpoints & viewsheds
+viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH, elevation_style_file = ELEVATION_MODEL_PATH, output = VIEWSHEDS_PATH, layer_tree_root = layer_root)
 
 
-# Créer une version normalisée des viewsheds pour pouvoir faire le calcul total 
+# Create a normalized version of the viewsheds to compute area covered
 for file_name in os.listdir(VIEWSHEDS_PATH):
     if file_name.endswith(".tif"):
         file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
         normalize(file_path, output_path = NORM_VIEWSHEDS_PATH)
 
-# Créer un fichier fusion pour calculer la surface totale couverte
+# Create a fusion file to compute total area covered
 norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f in os.listdir(NORM_VIEWSHEDS_PATH) if f.endswith(".tif")]
 fusion_or(norm_tif_files, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
@@ -65,8 +73,6 @@ for path in norm_tif_files:
     output[name]["r_surface"] = reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
     print(f"{name} ajouté au dictionnaire")
 
-fichier = "output.csv"
-create_csv(CSV_PATH, fichier)
-open_excel_and_process(fichier)
-write_csv(fichier, output)
-open_excel(fichier)
+columns = ["Nom", "Latitude", "Longitude", "Hauteur"]
+create_template(CSV_PATH, OUTPUT_PATH, columns)
+write_data(OUTPUT_PATH, output)
