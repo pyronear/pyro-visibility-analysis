@@ -1,5 +1,6 @@
 import csv
 import os
+
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsPointXY, QgsCoordinateReferenceSystem,
@@ -8,15 +9,15 @@ from qgis.core import (
 from PyQt5.QtCore import QVariant
 from qgis import processing
 
-## Constants
+## Constant
 DEFAULT_HEIGHT = 30  # in meters
 
 def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tree_root):
     """
-    Process CSV points to perform reprojection, viewshed, and area calculation.
+    Process CSV points to create viewsheds in order to perform reprojection, and area calculation.
     """
     ## Initialize groups
-    groupe_points = layer_tree_root.insertGroup(0, "Points_Hauts_Potentiels")
+    group_points = layer_tree_root.insertGroup(0, "Points_Hauts_Potentiels")
     viewshed_group = layer_tree_root.insertGroup(1, "Viewsheds")
 
     with open(cvs_path, newline='', encoding='utf-8') as csvfile:
@@ -26,7 +27,7 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
             nom_point = ligne['Nom']
             latitude = float(ligne['Latitude'])
             longitude = float(ligne['Longitude'])
-            hauteur = float(ligne["Hauteur (m)"]) if ligne["Hauteur (m)"] else DEFAULT_HEIGHT
+            hauteur = float(ligne["Hauteur"]) if ligne["Hauteur"] else DEFAULT_HEIGHT
 
             # Reproject point
             source_crs = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -47,7 +48,7 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
             provider.addFeature(feature)
 
             QgsProject.instance().addMapLayer(reprojected_layer, False)
-            groupe_points.addLayer(reprojected_layer)
+            group_points.addLayer(reprojected_layer)
 
             # Viewshed analysis
             viewpoint_result = processing.run("visibility:createviewpoints", {
