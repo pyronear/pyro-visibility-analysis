@@ -1,7 +1,9 @@
 import csv
 import os
-#from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
-#from qgis import processing
+
+from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
+from qgis import processing
+
 
 def display_tif(file):
     layer_name = os.path.splitext(os.path.basename(file))[0]
@@ -86,7 +88,8 @@ def read_csv(csv_path):    # return a list of all lines of the csv at csv_path a
 
 def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it with data in the list of dictionaries list_dic
     try:
-        data = transform_dic(list_dic)
+        data = transform_dic(csv_path, list_dic)
+
         columns = data[0].keys()
         with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
@@ -94,31 +97,50 @@ def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it wi
             writer.writerows(data)
             
     except Exception as e:
-        print(f"❌ Error while writing data from list_dic {list_dic} into csv at {csv_path} : {e}")
+        print(f"❌ Error while writing data from list_dic into csv at {csv_path} : {e}")
 
-def transform_dic(dic):    # transform a dictionary dic with keys which are names, into a list of dictionaries with a added "name" key
+def fusion_dic(list_dic1, list_dic2, key):
     try:
-        if isInstance(dic, dict):
-            return [{"Nom": name, **info} for name, info in dic.items()]
+        merged_dict = {}
+
+        for entry in list_dic1:
+            merged_dict[entry[key]] = entry
+
+        for entry in list_dic2:
+            if entry[key] in merged_dict:
+                merged_dict[entry[key]].update(entry)
+            else:
+                merged_dict[entry[key]] = entry
+        return list(merged_dict.values())
+    
+    except Exception as e:
+        print(f"❌ Error while adding columns : {e}")
+
+def transform_dic(csv_path, dic):    # transform a dictionary dic with keys which are names, into a list of dictionaries with a added "name" key
+    try:
+        origin = read_csv(csv_path)
+        if isinstance(dic, dict):
+            return fusion_dic(origin, [{"Nom": name, **info} for name, info in dic.items()], "Nom")
         else:
-            return dic
+            return fusion_dic(origin, dic, "Nom")
 
     except Exception as e:
-        print(f"❌ Error while transforming the dic {dic} : {e}")
+        print(f"❌ Error while transforming the dic : {e}")
 
 def filter_list_dic(list_dic, list_columns):    # filter a list of dictionaries list_dic to only have certain columns contained in the list of columns list_columns
     try:
         list_columns_clean = [col.lower() for col in list_columns]
-        return [{col: row[col] for col in row if any(column in col.lower() for column in list_columns_clean)} for row in list_dic]
+        return [{col: row[col] for col in row if any(col.lower().startswith(column) for column in list_columns_clean)} for row in list_dic]
 
     except Exception as e:
-        print(f"❌ Error while filtering the list of dic {list_dic} with columns {list_columns} : {e}")
+        print(f"❌ Error while filtering the list of dic with columns {list_columns} : {e}")
 
 def create_template(csv_path, output_path, list_columns):
     try: 
-        reader = read_csv(csv_path)
-        filter_dic = filter_list_dic(reader,list_columns)
-        write_data(output_path, filter_dic)
+        with open(output_path, mode="w", newline="", encoding="utf-8") as file:
+            reader = read_csv(csv_path)
+            filter_dic = filter_list_dic(reader, list_columns)
+            write_data(output_path, filter_dic)
     
     except Exception as e:
         print(f"❌ Error while creating a template from input csv at {input_path} in output csv at {output_path} while looking only at columns {list_columns} : {e}")
