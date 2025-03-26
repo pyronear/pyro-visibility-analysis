@@ -1,7 +1,7 @@
 import csv
 import os
-#from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
-#from qgis import processing
+from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
+from qgis import processing
 
 def display_tif(file):
     layer_name = os.path.splitext(os.path.basename(file))[0]
@@ -41,6 +41,11 @@ def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 
 
 def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
 
+    # Vérification si le fichier de sortie existe déjà
+    if os.path.exists(output):
+        print(f"⚠ Le fichier {output} existe déjà. Pass.")
+        return
+    
     # Correction de l'expression pour inclure les guillemets et "@1"
     expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
@@ -59,6 +64,11 @@ def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seu
 
 def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
 
+    # Vérification si le fichier de sortie existe déjà
+    if os.path.exists(output):
+        print(f"⚠ Le fichier {output} existe déjà. Pass.")
+        return
+
     # Correction de l'expression pour inclure les guillemets et "@1"
     expression = " AND ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
@@ -73,7 +83,7 @@ def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une se
         'OUTPUT': output
     })
 
-    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
+    print(f"Fusion AND des rasters terminée. Résultat enregistré sous {output}.")
 
 def read_csv(csv_path):    # return a list of all lines of the csv at csv_path as dictionaries with the same keys (the columns)
     try:
