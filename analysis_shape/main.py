@@ -2,9 +2,9 @@ import os
 import csv
 
 # Imports des autres fichiers
-from src.viewshed import process_csv_points as viewsheds_create
+from src.viewshed import viewsheds_create
 from src.area_analysis import coverage, coverage_out_of_total_coverage, reccurent_coverage
-from src.utils import display_tif, normalize, fusion_or, fusion_and, update_single, write_csv, create_csv, open_excel_and_process, open_excel
+from src.utils import display_tif, normalize, fusion_or, fusion_and, write_csv, create_csv, open_excel_and_process, open_excel
 
 from qgis.core import QgsProject
 
@@ -63,7 +63,7 @@ for path in norm_tif_files:
     name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
     
     output[name]["Surface"] = coverage(path)
-    output[name]["p_surface"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
+    output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
     other_paths = [x for x in norm_tif_files if x != path]
     # fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
@@ -82,6 +82,8 @@ for path in norm_tif_files:
             cov = coverage(fusion_22_path)
             output[name][name2] = cov
             output[name2][name] = cov
+        break
+    break
             
 
 fichier = "output.csv"
