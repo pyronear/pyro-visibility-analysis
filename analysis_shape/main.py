@@ -1,5 +1,5 @@
-import os 
 import csv
+import os
 
 # Imports des autres fichiers
 from src.viewshed import viewsheds_create
@@ -8,20 +8,29 @@ from src.utils import display_tif, normalize, fusion_or, fusion_and, create_temp
 
 from qgis.core import QgsProject
 
-# Chemin de base
+# Setup
+
 VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
-# Chemins relatifs 
 DATA_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data")
-ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")
-CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv")
+
+ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")   # To modify if needed
+
+CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv") # To modify id needed
+
 DEM_PROJECTED_PATH = os.path.join(DATA_PATH, "dem_file_projected.tif")
+
 VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "viewsheds_geotiff")
 os.makedirs(VIEWSHEDS_PATH, exist_ok=True)
-NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")  # Dossier pour stocker les rasters normalisés
+
+NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")
 os.makedirs(NORM_VIEWSHEDS_PATH, exist_ok=True)
+
 FUSION_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "fusion")
 os.makedirs(FUSION_PATH, exist_ok=True)
+
 layer_root = QgsProject.instance().layerTreeRoot()
+OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
+
 OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
 
 
@@ -35,7 +44,8 @@ OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv")
 #         file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
 #         normalize(file_path, output_path = NORM_VIEWSHEDS_PATH)
 
-# Créer un fichier fusion pour calculer la surface totale couverte
+
+# Create a fusion file to compute total area covered
 norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f in os.listdir(NORM_VIEWSHEDS_PATH) if f.endswith(".tif")]
 # fusion_or(norm_tif_files, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
@@ -67,6 +77,7 @@ for path in norm_tif_files:
     output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
     other_paths = [x for x in norm_tif_files if x != path]
+
     # fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
     # fusion_and([path, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif")],os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
 

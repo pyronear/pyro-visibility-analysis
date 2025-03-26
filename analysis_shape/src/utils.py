@@ -1,7 +1,9 @@
 import csv
 import os
+
 from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
 from qgis import processing
+
 
 def display_tif(file):
     layer_name = os.path.splitext(os.path.basename(file))[0]
@@ -87,6 +89,7 @@ def read_csv(csv_path):    # return a list of all lines of the csv at csv_path a
 def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it with data in the list of dictionaries list_dic
     try:
         data = transform_dic(csv_path, list_dic)
+
         columns = data[0].keys()
         with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
