@@ -24,15 +24,15 @@ os.makedirs(FUSION_PATH, exist_ok=True)
 layer_root = QgsProject.instance().layerTreeRoot()
 
 
-# # Créer les viewpoints et les viewsheds
-# viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH,elevation_style_file = ELEVATION_MODEL_PATH,output = VIEWSHEDS_PATH, layer_tree_root = layer_root) # Afficher les surfaces pour chaque point haut
+# Créer les viewpoints et les viewsheds
+viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH,elevation_style_file = ELEVATION_MODEL_PATH,output = VIEWSHEDS_PATH, layer_tree_root = layer_root) # Afficher les surfaces pour chaque point haut
 
 
-# # Créer une version normalisée des viewsheds pour pouvoir faire le calcul total 
-# for file_name in os.listdir(VIEWSHEDS_PATH):
-#     if file_name.endswith(".tif"):
-#         file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
-#         normalize(file_path, output_path = NORM_VIEWSHEDS_PATH)
+# Créer une version normalisée des viewsheds pour pouvoir faire le calcul total 
+for file_name in os.listdir(VIEWSHEDS_PATH):
+    if file_name.endswith(".tif"):
+        file_path = os.path.join(VIEWSHEDS_PATH, f"{file_name}").replace("\\", "/")
+        normalize(file_path, output_path = NORM_VIEWSHEDS_PATH)
 
 # Créer un fichier fusion pour calculer la surface totale couverte
 norm_tif_files = [os.path.join(NORM_VIEWSHEDS_PATH, f).replace("\\", "/") for f in os.listdir(NORM_VIEWSHEDS_PATH) if f.endswith(".tif")]
@@ -66,12 +66,6 @@ for path in norm_tif_files:
     output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(FUSION_PATH, "fusion_or_all.tif"))
 
     other_paths = [x for x in norm_tif_files if x != path]
-    # fusion_or(other_paths, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif"))
-    # fusion_and([path, os.path.join(FUSION_PATH, f"fusion_or_sans_{name}.tif")],os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
-
-    # output[name]["r_surface"] = reccurent_coverage(path, os.path.join(FUSION_PATH, f"fusion_and_{name}.tif"))
-    # print(f"{name} ajouté au dictionnaire")
-
     # Recouvrement 2 à 2
     output[name].setdefault(name, 1)
     for path2 in other_paths:
@@ -82,8 +76,6 @@ for path in norm_tif_files:
             cov = coverage(fusion_22_path)
             output[name][name2] = cov
             output[name2][name] = cov
-        break
-    break
             
 
 fichier = "output.csv"
