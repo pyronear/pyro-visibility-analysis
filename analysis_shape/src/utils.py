@@ -40,9 +40,18 @@ def normalize(file_path, output_path): # Remplace la valeur NaN des GeoTIFF par 
                                             'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
                                             'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
 
+def normalize_create(viewsheds_path, output_path):
+    for file_name in os.listdir(viewsheds_path):
+      if file_name.endswith(".tif"):
+          file_path = os.path.join(viewsheds_path, f"{file_name}").replace("\\", "/")
+          name =file_path.split("/")[-1].split(".")[0]
+          output = os.path.join(output_path, f"norm_{name}.tif")
+          if os.path.exists(output):
+            continue
+          normalize(file_path, output_path)
 
 def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
-
+     
     # Correction de l'expression pour inclure les guillemets et "@1"
     expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
@@ -60,7 +69,8 @@ def fusion_or(norm_files, output): # Fusionne les GeoTIFF normalisés en une seu
     print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
 
 def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une seule couche 
-
+    if os.path.exists(output):
+        return
     # Correction de l'expression pour inclure les guillemets et "@1"
     expression = " AND ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Encapsuler l'expression entre apostrophes
@@ -75,7 +85,7 @@ def fusion_and(norm_files, output): # Fusionne les GeoTIFF normalisés en une se
         'OUTPUT': output
     })
 
-    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")
+    print(f"Fusion OR des rasters terminée. Résultat enregistré sous {output}.")            
 
 def read_csv(csv_path):    # return a list of all lines of the csv at csv_path as dictionaries with the same keys (the columns)
     try:

@@ -33,6 +33,46 @@ def reccurent_coverage(file, total_file):
         Exception("La couverture de la couche est nulle (division par zéro)")
     return recc_coverage/cov
 
+def covered_surface(norm_viewsheds_path, fusion_path):
 
+    norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/") for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
+    output = {} 
 
+    for path in norm_tif_files:
+        name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+        output.setdefault(name, {})
+        output[name].setdefault("Surface", None)
+        output[name].setdefault("% du total", None)
+        for path2 in norm_tif_files:
+            name2 = os.path.basename(path2).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+            output[name].setdefault(name2, None)
+
+    for path in norm_tif_files:
+        name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+        
+        output[name]["Surface"] = coverage(path)
+        output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(fusion_path, "fusion_or_all.tif"))
+
+        other_paths = [x for x in norm_tif_files if x != path]
+
+        fusion_or(other_paths, os.path.join(fusion_path, f"fusion_or_sans_{name}.tif"))
+        fusion_and([path, os.path.join(fusion_path, f"fusion_or_sans_{name}.tif")],os.path.join(fusion_path, f"fusion_and_{name}.tif"))
+
+        #output[name]["r_surface"] = reccurent_coverage(path, os.path.join(fusion_path, f"fusion_and_{name}.tif"))
+        print(f"{name} ajouté au dictionnaire")
+
+        #Recouvrement 2 à 2
+        output[name].setdefault(name, 1)
+        for path2 in other_paths:
+            name2 = os.path.basename(path2).replace("norm_viewshed_", "").rsplit(".", 1)[0]
+            if output[name][name2] == None:
+                fusion_22_path = os.path.join(fusion_path, f"fusion_and_{name}_{name2}.tif")
+                fusion_and([path, path2],fusion_22_path)
+                cov = coverage(fusion_22_path)
+                output[name][name2] = cov
+                output[name2][name] = cov
+            break
+        break
+    
+    return output
     
