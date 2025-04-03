@@ -25,6 +25,11 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
 
         for i, ligne in enumerate(lecteur_csv):
             nom_point = ligne['Nom']
+
+            output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
+            if os.path.exists(output_file):
+                continue
+
             latitude = float(ligne['Latitude'])
             longitude = float(ligne['Longitude'])
             hauteur = float(ligne["Hauteur"]) if ligne["Hauteur"] else DEFAULT_HEIGHT
@@ -62,7 +67,6 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
             viewpoint_layer = viewpoint_result['OUTPUT']
 
             # Run viewshed
-            output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
             params_viewshed = {
                 'ANALYSIS_TYPE': 0,
                 'OPERATOR': 0,
@@ -80,7 +84,6 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
                 # Bande grise 0/1 
                 viewshed_layer.renderer().contrastEnhancement().setMaximumValue(1)
                 
-
                 # Save viewshed as GeoTIFF
                 # output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
                 # processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
