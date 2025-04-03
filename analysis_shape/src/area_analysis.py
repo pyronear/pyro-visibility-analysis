@@ -36,6 +36,7 @@ def reccurent_coverage(file, total_file):
 def covered_surface(norm_viewsheds_path, fusion_path):
 
     norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/") for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
+    fusion_or(norm_tif_files, os.path.join(fusion_path, "fusion_or_all.tif"))
     output = {} 
 
     for path in norm_tif_files:
@@ -55,24 +56,17 @@ def covered_surface(norm_viewsheds_path, fusion_path):
 
         other_paths = [x for x in norm_tif_files if x != path]
 
-        fusion_or(other_paths, os.path.join(fusion_path, f"fusion_or_sans_{name}.tif"))
-        fusion_and([path, os.path.join(fusion_path, f"fusion_or_sans_{name}.tif")],os.path.join(fusion_path, f"fusion_and_{name}.tif"))
-
-        #output[name]["r_surface"] = reccurent_coverage(path, os.path.join(fusion_path, f"fusion_and_{name}.tif"))
-        print(f"{name} ajouté au dictionnaire")
-
         #Recouvrement 2 à 2
         output[name].setdefault(name, 1)
         for path2 in other_paths:
             name2 = os.path.basename(path2).replace("norm_viewshed_", "").rsplit(".", 1)[0]
             if output[name][name2] == None:
-                fusion_22_path = os.path.join(fusion_path, f"fusion_and_{name}_{name2}.tif")
+                fusion_22_path = os.path.join(fusion_path, f"fusion_or_{name}_{name2}.tif")
                 fusion_and([path, path2],fusion_22_path)
                 cov = coverage(fusion_22_path)
                 output[name][name2] = cov
                 output[name2][name] = cov
-            break
-        break
-    
+        print(f"{name} ajouté au dictionnaire")
+
     return output
     
