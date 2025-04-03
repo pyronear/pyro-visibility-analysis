@@ -48,7 +48,7 @@ def normalize_create(viewsheds_path, output_path): # Normlise tout les GeoTIFFs 
           name =file_path.split("/")[-1].split(".")[0]
           output = os.path.join(output_path, f"norm_{name}.tif")
           if os.path.exists(output):
-            print(f"{file_name} déjà normalisé. Voir {os.path.join(output_path, f'norm_{file_name}.tif')}")
+            print(f"{file_name} déjà normalisé. Voir {os.path.join(output_path, f'norm_{file_name}')}")
             continue
           normalize(file_path, output_path)
 

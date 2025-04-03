@@ -44,4 +44,5 @@ write_data(OUTPUT_PATH, dic)
 print("over")
 
 # Display total covered surface by all viewsheds on a QGIS layer
-display_tif(os.path.join(FUSION_PATH, f"fusion_or_all_{CSV_PATH}.tif"))
+display_tif(os.path.join(FUSION_PATH, f"fusion_or_all_{os.path.splitext(os.path.basename(CSV_PATH))[0]}.tif"))
+

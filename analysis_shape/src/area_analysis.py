@@ -33,10 +33,10 @@ def reccurent_coverage(file, total_file):
         Exception("La couverture de la couche est nulle (division par zéro)")
     return recc_coverage/cov
 
-def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
+def covered_surface(norm_viewsheds_path, fusion_path, csv_path):
 
     norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/") for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
-    fusion_or(norm_tif_files, os.path.join(fusion_path, f"fusion_or_all_{CSV_path}.tif"))
+    fusion_or(norm_tif_files, os.path.join(fusion_path, f"fusion_or_all_{os.path.splitext(os.path.basename(csv_path))[0]}.tif"))
     output = {} 
 
     for path in norm_tif_files:
@@ -61,7 +61,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
         for path2 in other_paths:
             name2 = os.path.basename(path2).replace("norm_viewshed_", "").rsplit(".", 1)[0]
             if output[name][name2] == None:
-                fusion_22_path = os.path.join(fusion_path, f"fusion_or_{name}_{name2}.tif")
+                fusion_22_path = os.path.join(fusion_path, f"fusion_and_{name}_{name2}.tif")
                 fusion_and([path, path2],fusion_22_path)
                 cov = coverage(fusion_22_path)
                 output[name][name2] = cov
