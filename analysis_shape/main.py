@@ -14,7 +14,7 @@ DATA_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data")
 
 ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")   # To modify if needed
 
-CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_2.csv") # To modify if needed
+CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_1.csv") # To modify if needed
 
 DEM_PROJECTED_PATH = os.path.join(DATA_PATH, "dem_file_projected.tif")
 
