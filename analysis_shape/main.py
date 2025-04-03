@@ -41,9 +41,9 @@ normalize_create(VIEWSHEDS_PATH, NORM_VIEWSHEDS_PATH)
 columns = ["Nom", "Latitude", "Longitude", "Hauteur"]
 
 create_template(CSV_PATH, OUTPUT_PATH, columns)
-dic = covered_surface(NORM_VIEWSHEDS_PATH, FUSION_PATH)
+dic = covered_surface(NORM_VIEWSHEDS_PATH, FUSION_PATH, CSV_PATH)
 write_data(OUTPUT_PATH, dic)
 print("over")
 
 # Display total covered surface by all viewsheds on a QGIS layer
-display_tif(os.path.join(FUSION_PATH, "fusion_or_all.tif"))
+display_tif(os.path.join(FUSION_PATH, f"fusion_or_all_{CSV_PATH}.tif"))
