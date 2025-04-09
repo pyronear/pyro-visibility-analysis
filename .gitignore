@@ -8,3 +8,4 @@ analysis_shape/fusion/*
 analysis_shape/src/__pycache__/
 analysis_shape/src/__pycache__/*
 analysis_shape/data/essai.qgz
+*/__pycache__/*
