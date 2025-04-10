@@ -95,8 +95,6 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
                 cov22 = overlap_22(path, path2, fusion_path)
                 output[name][name2] = cov22
                 output[name2][name] = cov22
-            break
-        break
         print(f"{name} ajouté au dictionnaire")
 
     return output
