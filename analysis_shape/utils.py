@@ -108,19 +108,26 @@ def read_csv(csv_path):
     except Exception as e:
         print(f"❌ Error while reading the csv at {csv_path} : {e}")
 
-# Opens the csv at csv_path and fill it with data of the dictionnary dict
+# Opens the csv at csv_path and fills it with data from the dictionary `dict`
 def write_data(csv_path, dict):    
     try:
         data = transform_dic(csv_path, dict)
 
-        columns = data[0].keys()
+        # Collect all fieldnames across all rows
+        all_keys = set()
+        for row in data:
+            all_keys.update(row.keys())
+        columns = sorted(all_keys)  # Optional: sort column names
+
         with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
             writer.writeheader()
             writer.writerows(data)
-            
+        print(f"✅ Data written to {csv_path}")
+
     except Exception as e:
         print(f"❌ Error while writing data from list_dic into csv at {csv_path} : {e}")
+
 
 def fusion_dic(list_dic1, list_dic2, key):
     try:

@@ -49,13 +49,14 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
     norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/") for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
 
     # Reads CSV to create a list of viewpoints to analyse
-    print(CSV_path)
     df = pd.read_csv(CSV_path, delimiter=';')
     df.columns = df.columns.str.strip()
-    col_Name = [col for col in df.columns if col.lower() == "Name"]
-    if not col_Name:
-        raise ValueError("Column 'Name' not found in the CSV file, or delimiter is incorrect.")
-    expected_names = set(df[col_Name[0]].astype(str))  # Column "Name" or "Name" expected in the CSV
+
+    if "Name" not in df.columns:
+        raise ValueError(f"❌ Column 'Name' not found in CSV. Found columns: {df.columns.tolist()}")
+
+    expected_names = set(df["Name"].astype(str))
+
 
     # Filters .tif files keeping only those that are in the CSV
     filtered_tif_files = []
@@ -87,7 +88,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
         name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
         
         output[name]["Surface"] = coverage(path)
-        output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(fusion_path, "fusion_or_all.tif"))
+        output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(fusion_path, f"fusion_or_all_{CSV_name}.tif"))
 
         other_paths = [x for x in norm_tif_files if x != path]
 
