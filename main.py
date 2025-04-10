@@ -4,7 +4,9 @@ import csv
 # Force reload
 import importlib
 import analysis_shape.area_analysis
+import analysis_shape.utils
 importlib.reload(analysis_shape.area_analysis)
+importlib.reload(analysis_shape.utils)
 
 
 ## Imports of used functions
