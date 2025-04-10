@@ -144,9 +144,9 @@ def transform_dic(csv_path, dic):
     try:
         origin = read_csv(csv_path)
         if isinstance(dic, dict):
-            return fusion_dic(origin, [{"Nom": name, **info} for name, info in dic.items()], "Nom")
+            return fusion_dic(origin, [{"Name": name, **info} for name, info in dic.items()], "Name")
         else:
-            return fusion_dic(origin, dic, "Nom")
+            return fusion_dic(origin, dic, "Name")
 
     except Exception as e:
         print(f"❌ Error while transforming the dic : {e}")

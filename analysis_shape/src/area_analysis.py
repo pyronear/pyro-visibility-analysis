@@ -51,10 +51,10 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
     # Reads CSV to create a list of viewpoints to analyse
     df = pd.read_csv(CSV_path, delimiter=';')
     df.columns = df.columns.str.strip()
-    col_nom = [col for col in df.columns if col.lower() == "nom"]
-    if not col_nom:
-        raise ValueError("Column 'Nom' not found in the CSV file, or delimiter is incorrect.")
-    expected_names = set(df[col_nom[0]].astype(str))  # Column "Nom" or "nom" expected in the CSV
+    col_Name = [col for col in df.columns if col.lower() == "Name"]
+    if not col_Name:
+        raise ValueError("Column 'Name' not found in the CSV file, or delimiter is incorrect.")
+    expected_names = set(df[col_Name[0]].astype(str))  # Column "Name" or "Name" expected in the CSV
 
     # Filters .tif files keeping only those that are in the CSV
     filtered_tif_files = []

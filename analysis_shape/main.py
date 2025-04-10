@@ -39,7 +39,7 @@ viewsheds_create(cvs_path = CSV_PATH, dem_path = DEM_PROJECTED_PATH,elevation_st
 normalize_create(VIEWSHEDS_PATH, NORM_VIEWSHEDS_PATH)
 
 # Choosing the columns to keep from the input CSV file to create the output CSV file
-columns = ["Nom", "Latitude", "Longitude", "Hauteur"]
+columns = ["Name", "Latitude", "Longitude", "Height"]
 # Create the output CSV file with the chosen columns
 create_template(CSV_PATH, OUTPUT_PATH, columns)
 # Dictionary with the content of the main analysis functions

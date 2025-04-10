@@ -24,15 +24,15 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
         lecteur_csv = csv.DictReader(csvfile, delimiter=';')
 
         for i, ligne in enumerate(lecteur_csv):
-            nom_point = ligne['Nom']
+            Name_point = ligne['Name']
 
-            output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
+            output_file = os.path.join(output, f"viewshed_{Name_point}.tif")
             if os.path.exists(output_file):
                 continue
 
             latitude = float(ligne['Latitude'])
             longitude = float(ligne['Longitude'])
-            hauteur = float(ligne["Hauteur"]) if ligne["Hauteur"] else DEFAULT_HEIGHT
+            Height = float(ligne["Height"]) if ligne["Height"] else DEFAULT_HEIGHT
 
             # Reproject point
             source_crs = QgsCoordinateReferenceSystem("EPSG:4326")
@@ -42,14 +42,14 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
 
             # Create point layer
             uri_reprojected = "Point?crs=EPSG:2154"
-            reprojected_layer = QgsVectorLayer(uri_reprojected, f"Point_{nom_point}_Lambert93", "memory")
+            reprojected_layer = QgsVectorLayer(uri_reprojected, f"Point_{Name_point}_Lambert93", "memory")
             provider = reprojected_layer.dataProvider()
-            provider.addAttributes([QgsField("Nom", QVariant.String), QgsField("Latitude", QVariant.Double), QgsField("Longitude", QVariant.Double)])
+            provider.addAttributes([QgsField("Name", QVariant.String), QgsField("Latitude", QVariant.Double), QgsField("Longitude", QVariant.Double)])
             reprojected_layer.updateFields()
 
             feature = QgsFeature()
             feature.setGeometry(QgsGeometry.fromPointXY(point_reprojected))
-            feature.setAttributes([nom_point, latitude, longitude])
+            feature.setAttributes([Name_point, latitude, longitude])
             provider.addFeature(feature)
 
             QgsProject.instance().addMapLayer(reprojected_layer, False)
@@ -60,7 +60,7 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
                 'OBSERVER_POINTS': reprojected_layer,
                 'DEM': dem_path,
                 'RADIUS': 15000,
-                'OBS_HEIGHT': hauteur,
+                'OBS_HEIGHT': Height,
                 'TARGET_HEIGHT': 20,
                 'OUTPUT': 'TEMPORARY_OUTPUT'
             })
@@ -75,7 +75,7 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
                 'OUTPUT': output_file
             }
             result_viewshed = processing.run("visibility:viewshed", params_viewshed)
-            viewshed_layer = QgsRasterLayer(result_viewshed['OUTPUT'], f"Viewshed_{nom_point}")
+            viewshed_layer = QgsRasterLayer(result_viewshed['OUTPUT'], f"Viewshed_{Name_point}")
             
             if viewshed_layer.isValid():
                 viewshed_layer.loadNamedStyle(elevation_style_file)
@@ -86,5 +86,5 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
                 viewshed_group.addLayer(viewshed_layer)
     
             else:
-                print(f"Viewshed analysis failed for {nom_point}")
+                print(f"Viewshed analysis failed for {Name_point}")
     
