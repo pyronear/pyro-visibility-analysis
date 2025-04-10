@@ -48,7 +48,9 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
             reprojected_layer.updateFields()
 
             feature = QgsFeature()
-            feature.setGeometry(QgsGeometry.fromPointXY(point_reprojected))
+            geom = QgsGeometry.fromPointXY(point_reprojected)
+            feature.setGeometry(geom)
+
             feature.setAttributes([Name_point, latitude, longitude])
             provider.addFeature(feature)
 
