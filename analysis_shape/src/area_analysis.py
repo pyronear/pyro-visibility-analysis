@@ -78,8 +78,6 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
                 output[name][name2] = cov22
                 output[name2][name] = cov22
 
-            break
-        break
         print(f"{name} ajouté au dictionnaire")
 
     return output
