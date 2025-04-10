@@ -58,6 +58,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
 
     # Filters .tif files keeping only those that are in the CSV
     filtered_tif_files = []
+    
     for path in norm_tif_files:
         name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
         if name in expected_names:
@@ -80,7 +81,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
             name2 = os.path.basename(path2).replace("norm_viewshed_", "").rsplit(".", 1)[0]
             output[name].setdefault(name2, None)
 
-    # Analysys viewshed by viewshed
+    # Analysis viewshed by viewshed
     for path in norm_tif_files:
         name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
         
@@ -97,6 +98,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
                 cov22 = overlap_22(path, path2, fusion_path)
                 output[name][name2] = cov22
                 output[name2][name] = cov22
+
         print(f"{name} added to the output dictionary")
 
     return output
