@@ -10,22 +10,23 @@ from qgis.core import QgsProject
 
 ## Paths Setup
 # Solution path (principal)
-VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
+CSV_PATH = "pyro-visibility-analysis/data/sdis-67/sites.csv"
+
+OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")
 
 # Paths based on the solution path
-DATA_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data")
-VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "viewsheds_geotiff")
+VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "viewsheds_geotiff")
 os.makedirs(VIEWSHEDS_PATH, exist_ok=True)
-NORM_VIEWSHEDS_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "normalized")
+NORM_VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "normalized")
 os.makedirs(NORM_VIEWSHEDS_PATH, exist_ok=True)
-FUSION_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "fusion")
+FUSION_PATH = os.path.join(OUTPUT_DIR, "fusion")
 os.makedirs(FUSION_PATH, exist_ok=True)
 
 # Inputs / Ouptuts
-ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Elevation_Model.qml")   # To modify if needed
-CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_1.csv") # To modify if needed
-DEM_PROJECTED_PATH = os.path.join(DATA_PATH, "dem_file_projected.tif")
-OUTPUT_PATH = os.path.join(DATA_PATH, "output.csv") # To modify if needed
+ELEVATION_MODEL_PATH = os.path.join(OUTPUT_DIR, "Elevation_Model.qml")   # To modify if needed
+
+DEM_PROJECTED_PATH = os.path.join(OUTPUT_DIR, "dem_l93.tif")
+OUTPUT_PATH = os.path.join(OUTPUT_DIR, "output.csv") # To modify if needed
 
 # Project layers
 layer_root = QgsProject.instance().layerTreeRoot()
