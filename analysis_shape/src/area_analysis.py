@@ -52,7 +52,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, csv_path):
         name = os.path.basename(path).replace("norm_viewshed_", "").rsplit(".", 1)[0]
         
         output[name]["Surface"] = coverage(path)
-        output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(fusion_path, "fusion_or_all.tif"))
+        output[name]["% du total"] = coverage_out_of_total_coverage(path, os.path.join(fusion_path, f"fusion_or_all_{os.path.splitext(os.path.basename(csv_path))[0]}.tif"))
 
         other_paths = [x for x in norm_tif_files if x != path]
 
