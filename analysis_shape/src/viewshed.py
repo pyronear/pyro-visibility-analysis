@@ -79,14 +79,8 @@ def viewsheds_create(cvs_path, dem_path, elevation_style_file, output, layer_tre
             
             if viewshed_layer.isValid():
                 viewshed_layer.loadNamedStyle(elevation_style_file)
-                # BlendMode = Addition 
                 viewshed_layer.setBlendMode(QgsPainting.getCompositionMode(QgsPainting.BlendAddition))
-                # Bande grise 0/1 
                 viewshed_layer.renderer().contrastEnhancement().setMaximumValue(1)
-                
-                # Save viewshed as GeoTIFF
-                # output_file = os.path.join(output, f"viewshed_{nom_point}.tif")
-                # processing.run("gdal:translate", {'INPUT': viewshed_layer, 'OUTPUT': output_file})
 
                 QgsProject.instance().addMapLayer(viewshed_layer, False)
                 viewshed_group.addLayer(viewshed_layer)
