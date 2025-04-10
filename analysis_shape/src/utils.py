@@ -107,9 +107,9 @@ def read_csv(csv_path):    # return a list of all lines of the csv at csv_path a
     except Exception as e:
         print(f"❌ Error while reading the csv at {csv_path} : {e}")
   
-def write_data(csv_path, list_dic):    # open the csv at csv_path and fill it with data in the list of dictionaries list_dic
+def write_data(csv_path, dict):    # open the csv at csv_path and fill it with data of the dictionnary dict
     try:
-        data = transform_dic(csv_path, list_dic)
+        data = transform_dic(csv_path, dict)
 
         columns = data[0].keys()
         with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:

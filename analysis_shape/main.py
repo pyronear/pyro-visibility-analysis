@@ -14,7 +14,7 @@ VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
 # Chemins relatifs 
 DATA_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data")
 
-ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Digital_Elevation_Model_basRhin.qml")   # To modify if needed
+ELEVATION_MODEL_PATH = os.path.join(DATA_PATH, "Elevation_Model.qml")   # To modify if needed
 
 CSV_PATH = os.path.join(DATA_PATH, "pts_hauts_1.csv") # To modify if needed
 
@@ -44,5 +44,6 @@ write_data(OUTPUT_PATH, dic)
 print("over")
 
 # Display total covered surface by all viewsheds on a QGIS layer
-display_tif(os.path.join(FUSION_PATH, f"fusion_or_all_{os.path.splitext(os.path.basename(CSV_PATH))[0]}.tif"))
 
+CSV_name = os.path.splitext(os.path.basename(CSV_PATH))[0]
+display_tif(os.path.join(FUSION_PATH, f"fusion_or_all_{CSV_name}.tif"))

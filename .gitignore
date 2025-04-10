@@ -1,4 +1,6 @@
 analysis_shape/data/essai.qgz
+analysis_shape/data/dem_file.*
+analysis_shape/data/dem_file_projected.*
 analysis_shape/normalized/
 analysis_shape/normalized/*
 analysis_shape/viewsheds_geotiff/
@@ -8,3 +10,4 @@ analysis_shape/fusion/*
 analysis_shape/src/__pycache__/
 analysis_shape/src/__pycache__/*
 analysis_shape/data/essai.qgz
+*/__pycache__/*
