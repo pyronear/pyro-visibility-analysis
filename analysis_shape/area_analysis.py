@@ -4,7 +4,7 @@ from PIL import Image
 from PIL.TiffTags import TAGS
 import pandas as pd
 
-from src.utils import fusion_or, fusion_and
+from analysis_shape.utils import fusion_or, fusion_and
 
 ## Returns the .tif covered area in m²
 def coverage(file):
@@ -49,6 +49,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
     norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/") for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
 
     # Reads CSV to create a list of viewpoints to analyse
+    print(CSV_path)
     df = pd.read_csv(CSV_path, delimiter=';')
     df.columns = df.columns.str.strip()
     col_Name = [col for col in df.columns if col.lower() == "Name"]
