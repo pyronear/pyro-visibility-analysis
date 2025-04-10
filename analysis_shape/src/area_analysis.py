@@ -66,6 +66,7 @@ def covered_surface(norm_viewsheds_path, fusion_path, CSV_path):
 
     CSV_name = os.path.splitext(os.path.basename(CSV_path))[0]
     fusion_or(norm_tif_files, os.path.join(fusion_path, f"fusion_or_all_{CSV_name}.tif"))
+    
     output = {} 
 
     # Initialisation du dictionnaire de sortie
