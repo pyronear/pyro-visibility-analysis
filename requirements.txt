@@ -1,0 +1,7 @@
+pandas
+geopandas
+rioxarray
+shapely
+numpy
+rasterio
+elevation

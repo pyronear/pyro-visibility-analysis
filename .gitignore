@@ -1,13 +1,8 @@
-analysis_shape/data/essai.qgz
-analysis_shape/data/dem_file.*
-analysis_shape/data/dem_file_projected.*
-analysis_shape/normalized/
-analysis_shape/normalized/*
-analysis_shape/viewsheds_geotiff/
-analysis_shape/viewsheds_geotiff/*
-analysis_shape/fusion/
-analysis_shape/fusion/*
-analysis_shape/src/__pycache__/
-analysis_shape/src/__pycache__/*
-analysis_shape/data/essai.qgz
-*/__pycache__/*
+# Ignore generated files
+data/*
+# Ignore any __pycache__ folder and its contents, anywhere
+**/__pycache__/
+
+# macOS system files
+.DS_Store
+**/.DS_Store

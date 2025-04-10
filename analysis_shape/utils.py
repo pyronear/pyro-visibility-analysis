@@ -1,6 +1,6 @@
 import csv
 import os
-
+import pandas as pd
 from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
 from qgis import processing
 
@@ -98,29 +98,45 @@ def fusion_and(norm_files, output):
 
     print(f"AND fusion completed. Output saved to {output}.")
      
-# Returns a list of all lines of the csv at csv_path as dictionaries with the same keys (the columns)
-def read_csv(csv_path):    
+
+# Returns a list of all rows from the CSV as dictionaries
+def read_csv(csv_path):
     try:
-        with open(csv_path, mode="r", newline="", encoding="utf-8") as csv_file:
-            reader = list(csv.DictReader(csv_file, delimiter=';')) # watchout for the delimiter
-        return reader
+        df = pd.read_csv(csv_path, delimiter=';', encoding='utf-8')
+        return df.to_dict(orient='records')  # Each row becomes a dict
+    except Exception as e:
+        print(f"❌ Error while reading the CSV at {csv_path} : {e}")
+        return []
+
+
+def write_data(csv_path, data):
+    try:
+        # Handle both dict-of-dicts or list-of-dicts
+        if isinstance(data, dict):
+            records = []
+            for site, values in data.items():
+                row = {"Site": site}
+                row.update(values)
+                records.append(row)
+        elif isinstance(data, list):
+            records = data
+        else:
+            raise ValueError("Data must be a dictionary or list of dictionaries.")
+
+        df = pd.DataFrame(records)
+
+        # Optional: reorder fixed columns
+        ordered_cols = ["Site", "Surface", "% du total"]
+        other_cols = [c for c in df.columns if c not in ordered_cols]
+        df = df[[col for col in ordered_cols if col in df.columns] + sorted(other_cols)]
+
+        df.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
+        print(f"✅ Data successfully written to {csv_path}")
 
     except Exception as e:
-        print(f"❌ Error while reading the csv at {csv_path} : {e}")
+        print(f"❌ Error while writing data to csv at {csv_path} : {e}")
 
-# Opens the csv at csv_path and fill it with data of the dictionnary dict
-def write_data(csv_path, dict):    
-    try:
-        data = transform_dic(csv_path, dict)
 
-        columns = data[0].keys()
-        with open(csv_path, mode="w", newline="", encoding="utf-8") as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=columns, delimiter=";")
-            writer.writeheader()
-            writer.writerows(data)
-            
-    except Exception as e:
-        print(f"❌ Error while writing data from list_dic into csv at {csv_path} : {e}")
 
 def fusion_dic(list_dic1, list_dic2, key):
     try:
@@ -144,9 +160,9 @@ def transform_dic(csv_path, dic):
     try:
         origin = read_csv(csv_path)
         if isinstance(dic, dict):
-            return fusion_dic(origin, [{"Nom": name, **info} for name, info in dic.items()], "Nom")
+            return fusion_dic(origin, [{"Name": name, **info} for name, info in dic.items()], "Name")
         else:
-            return fusion_dic(origin, dic, "Nom")
+            return fusion_dic(origin, dic, "Name")
 
     except Exception as e:
         print(f"❌ Error while transforming the dic : {e}")
