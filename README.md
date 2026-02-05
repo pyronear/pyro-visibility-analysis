@@ -67,10 +67,17 @@ This script:
 
 1. In `main.py`, update `CSV_PATH` to the csv containing stations you want to analyse 
 2. Open **QGIS**
-3. Create a **new project**
-4. Open the **Python Console** → *Show Editor*
-5. Load and run `main.py`
-6. **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
+3. You might need to install QGIS plugin "Visibility Analysis" (from Zoran Čučković)
+4. Create a **new project**
+5. In case of fail later, you might need to save the project in the working directory of the repo pyro-visibility-analysis
+6. Open the **Python Console** → *Show Editor*
+7. Load and run `main.py`
+8. you might need to speficy first in the python console
+```python
+import sys
+sys.path.append("/PATH_TO_THE_REPOSITORY/pyro-visibility-analysis")
+```
+7. **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
 > ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
 
 This will:
