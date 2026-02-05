@@ -79,6 +79,7 @@ sys.path.append("/PATH_TO_THE_REPOSITORY/pyro-visibility-analysis")
 ```
 7. **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
 > ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
+8. To share this project you need to share, the qgis project file (.qgz), all data in the directory of the csv you provided.
 
 This will:
 - Load your DEM and OpenStreetMap as background
