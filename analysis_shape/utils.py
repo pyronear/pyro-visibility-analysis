@@ -1,68 +1,94 @@
 import csv
 import os
 import pandas as pd
-from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem
+from qgis.core import QgsProject, QgsRasterLayer, QgsCoordinateReferenceSystem, QgsLayerTreeLayer
 from qgis import processing
 
 # Displays a raster layer in QGIS from a .tif file
-def display_tif(file):
+
+
+def display_tif(file, group_name="viewsheds", style_file_path=None):
     layer_name = os.path.splitext(os.path.basename(file))[0]
     raster_layer = QgsRasterLayer(file, layer_name)
     root = QgsProject.instance().layerTreeRoot()
-    
+
     # Check if the raster is valid and add it to QGIS
     if raster_layer.isValid():
         # Find the existing layer 'dem_file_projected' in the QGIS project
         dem_layer = QgsProject.instance().mapLayersByName("dem_file_projected")
-        
+
         if dem_layer:
             # Get the CRS from the 'dem_file_projected' layer
             crs = dem_layer[0].crs()
-            print(f"The CRS of the layer 'dem_file_projected' is {crs.authid()}.")
+            print(
+                f"The CRS of the layer 'dem_file_projected' is {crs.authid()}.")
 
             # Apply the same CRS to the new raster layer
-            raster_layer.setCrs(crs)
-        
+            # raster_layer.setCrs(crs)
+            raster_layer = processing.run(
+                "gdal:warpreproject",
+                {
+                    "INPUT": raster_layer,
+                    "TARGET_CRS": crs,
+                    "OUTPUT": "TEMPORARY_OUTPUT",
+                }
+            )["OUTPUT"]
+
+        if style_file_path and os.path.exists(style_file_path):
+            raster_layer.loadNamedStyle(str(style_file_path))
+            raster_layer.triggerRepaint()
+
         QgsProject.instance().addMapLayer(raster_layer, False)
-        group = root.insertGroup(0, "Viewsheds_merged")
+
+        group = root.findGroup(group_name)
+        if not group:
+            group = root.insertGroup(0, group_name)
         group.addLayer(raster_layer)
         print(f"Raster {layer_name} successfully added to QGIS.")
-        
+
     else:
         print("Error: Could not add raster to QGIS.")
 
 # Replace NaN values in GeoTIFFs with 0
-def normalize(file_path, output_path): 
-    file_name =file_path.split("/")[-1].split(".")[0]
-    processing.run("gdal:rastercalculator", {'INPUT_A':file_path,'BAND_A':1,'INPUT_B':None,'BAND_B':None,
-                                            'INPUT_C':None,'BAND_C':None,'INPUT_D':None,'BAND_D':None,
-                                            'INPUT_E':None,'BAND_E':None,'INPUT_F':None,'BAND_F':None,
-                                            'FORMULA':'nan_to_num(A)','NO_DATA':None,'EXTENT_OPT':0,
-                                            'PROJWIN':None,'RTYPE':5,'OPTIONS':'','EXTRA':'',
-                                            'OUTPUT':os.path.join(output_path, f"norm_{file_name}.tif")})
+
+
+def normalize(file_path, output_path):
+    file_name = file_path.split("/")[-1].split(".")[0]
+    processing.run("gdal:rastercalculator", {'INPUT_A': file_path, 'BAND_A': 1, 'INPUT_B': None, 'BAND_B': None,
+                                             'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None,
+                                             'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None,
+                                             'FORMULA': 'nan_to_num(A)', 'NO_DATA': None, 'EXTENT_OPT': 0,
+                                             'PROJWIN': None, 'RTYPE': 5, 'OPTIONS': '', 'EXTRA': '',
+                                             'OUTPUT': os.path.join(output_path, f"norm_{file_name}.tif")})
     print(f"{file_name} normalized and saved to {os.path.join(output_path, f'norm_{file_name}.tif')}")
 
 # Normalize all GeoTIFFs in input_dir and save them to output_dir
+
+
 def normalize_create(viewsheds_path, output_path):
     for file_name in os.listdir(viewsheds_path):
-      if file_name.endswith(".tif"):
-          file_path = os.path.join(viewsheds_path, f"{file_name}").replace("\\", "/")
-          name =file_path.split("/")[-1].split(".")[0]
-          output = os.path.join(output_path, f"norm_{name}.tif")
-          if os.path.exists(output):
-            print(f"{file_name} already normalized. See {output}")
-            continue
-          normalize(file_path, output_path)
+        if file_name.endswith(".tif"):
+            file_path = os.path.join(
+                viewsheds_path, f"{file_name}").replace("\\", "/")
+            name = file_path.split("/")[-1].split(".")[0]
+            output = os.path.join(output_path, f"norm_{name}.tif")
+            if os.path.exists(output):
+                print(f"{file_name} already normalized. See {output}")
+                continue
+            normalize(file_path, output_path)
 
 # Merge normalized GeoTIFFs using logical OR operation
+
+
 def fusion_or(norm_files, output):
-    
+
     if os.path.exists(output):
-        print(f"OR fusion already exists. See {output}.")  
+        print(f"OR fusion already exists. See {output}.")
         return
-    
+
     # Generate expression like "city@1 OR village@1 OR ..."
-    expression = " OR ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
+    expression = " OR ".join(
+        [f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"  # Wrap expression in quotes
 
     processing.run("native:rastercalc", {
@@ -77,14 +103,17 @@ def fusion_or(norm_files, output):
     print(f"OR fusion completed. Output saved to {output}.")
 
 # Merge normalized GeoTIFFs using logical AND operation
+
+
 def fusion_and(norm_files, output):
-    
+
     if os.path.exists(output):
-        print(f"AND fusion already exists. See {output}.")  
+        print(f"AND fusion already exists. See {output}.")
         return
 
     # Generate expression like "city@1 AND village@1 AND ..."
-    expression = " AND ".join([f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
+    expression = " AND ".join(
+        [f'"{os.path.splitext(os.path.basename(filename))[0]}@1"' for filename in norm_files])
     expression = f"'{expression}'"
 
     processing.run("native:rastercalc", {
@@ -97,7 +126,7 @@ def fusion_and(norm_files, output):
     })
 
     print(f"AND fusion completed. Output saved to {output}.")
-     
+
 
 # Returns a list of all rows from the CSV as dictionaries
 def read_csv(csv_path):
@@ -121,21 +150,22 @@ def write_data(csv_path, data):
         elif isinstance(data, list):
             records = data
         else:
-            raise ValueError("Data must be a dictionary or list of dictionaries.")
+            raise ValueError(
+                "Data must be a dictionary or list of dictionaries.")
 
         df = pd.DataFrame(records)
 
         # Optional: reorder fixed columns
         ordered_cols = ["Site", "Surface", "% du total"]
         other_cols = [c for c in df.columns if c not in ordered_cols]
-        df = df[[col for col in ordered_cols if col in df.columns] + sorted(other_cols)]
+        df = df[[col for col in ordered_cols if col in df.columns] +
+                sorted(other_cols)]
 
         df.to_csv(csv_path, sep=";", index=False, encoding="utf-8")
         print(f"✅ Data successfully written to {csv_path}")
 
     except Exception as e:
         print(f"❌ Error while writing data to csv at {csv_path} : {e}")
-
 
 
 def fusion_dic(list_dic1, list_dic2, key):
@@ -151,12 +181,14 @@ def fusion_dic(list_dic1, list_dic2, key):
             else:
                 merged_dict[entry[key]] = entry
         return list(merged_dict.values())
-    
+
     except Exception as e:
         print(f"❌ Error while adding columns : {e}")
 
 # Transforms a dictionary dic with keys which are names, into a list of dictionaries with a added "name" key
-def transform_dic(csv_path, dic):    
+
+
+def transform_dic(csv_path, dic):
     try:
         origin = read_csv(csv_path)
         if isinstance(dic, dict):
@@ -168,20 +200,42 @@ def transform_dic(csv_path, dic):
         print(f"❌ Error while transforming the dic : {e}")
 
 # Filters a list of dictionaries list_dic to only have certain columns contained in the list of columns list_columns
-def filter_list_dic(list_dic, list_columns):    
+
+
+def filter_list_dic(list_dic, list_columns):
     try:
         list_columns_clean = [col.lower() for col in list_columns]
         return [{col: row[col] for col in row if any(col.lower().startswith(column) for column in list_columns_clean)} for row in list_dic]
 
     except Exception as e:
-        print(f"❌ Error while filtering the list of dic with columns {list_columns} : {e}")
+        print(
+            f"❌ Error while filtering the list of dic with columns {list_columns} : {e}")
+
 
 def create_template(csv_path, output_path, list_columns):
-    try: 
+    try:
         with open(output_path, mode="w", newline="", encoding="utf-8") as file:
             reader = read_csv(csv_path)
             filter_dic = filter_list_dic(reader, list_columns)
             write_data(output_path, filter_dic)
-    
+
     except Exception as e:
-        print(f"❌ Error while creating a template from input csv at {csv_path} in output csv at {output_path} while looking only at columns {list_columns} : {e}")
+        print(
+            f"❌ Error while creating a template from input csv at {csv_path} in output csv at {output_path} while looking only at columns {list_columns} : {e}")
+
+
+def add_osm_background():
+    osm_url = "type=xyz&url=https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    layer = QgsRasterLayer(osm_url, "OpenStreetMap", "wms")
+
+    if not layer.isValid():
+        print("❌ Failed to load OpenStreetMap layer")
+        return
+
+    # Add to bottom of layer tree
+    QgsProject.instance().addMapLayer(layer, False)
+    layer_node = QgsLayerTreeLayer(layer)
+    root = QgsProject.instance().layerTreeRoot()
+    root.insertChildNode(0, layer_node)
+
+    print("🗺️ OpenStreetMap added as background")
