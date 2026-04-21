@@ -17,8 +17,37 @@ def load_data(path, layer):
     """Load the GeoPackage and pre-compute per-site area in km² using a local UTM CRS."""
     gdf = gpd.read_file(path, layer=layer)
     proj_crs = gdf.estimate_utm_crs()
-    gdf["area_km2"] = gdf.to_crs(proj_crs).geometry.area / 1e6
-    return gdf, proj_crs
+    gdf_proj = gdf.to_crs(proj_crs)
+    gdf["area_km2"] = gdf_proj.geometry.area / 1e6
+    geoms_by_site = dict(zip(gdf["site_name"], gdf_proj.geometry))
+    return gdf, proj_crs, geoms_by_site
+
+
+def greedy_max_coverage(geoms_by_site, n):
+    """Greedy approximation of max-coverage: pick n sites that maximize union area.
+
+    Returns the list of selected site names, in pick order.
+    """
+    remaining = dict(geoms_by_site)
+    selected = []
+    current_union = None
+    current_area = 0.0
+
+    for _ in range(min(n, len(geoms_by_site))):
+        best_name, best_gain, best_union, best_area = None, -1.0, None, 0.0
+        for name, geom in remaining.items():
+            new_union = geom if current_union is None else unary_union([current_union, geom])
+            new_area = new_union.area
+            gain = new_area - current_area
+            if gain > best_gain:
+                best_name, best_gain, best_union, best_area = name, gain, new_union, new_area
+        if best_name is None:
+            break
+        selected.append(best_name)
+        current_union, current_area = best_union, best_area
+        del remaining[best_name]
+
+    return selected
 
 
 def main():
@@ -32,10 +61,26 @@ def main():
         )
         return
 
-    gdf, proj_crs = load_data(gpkg_path, layer)
+    gdf, proj_crs, geoms_by_site = load_data(gpkg_path, layer)
     sites = sorted(gdf["site_name"].tolist())
 
     st.sidebar.header("Sites")
+
+    st.sidebar.subheader("Auto-select")
+    n_auto = st.sidebar.number_input(
+        "How many sites?",
+        min_value=1,
+        max_value=len(sites),
+        value=min(3, len(sites)),
+        step=1,
+    )
+    if st.sidebar.button(f"Pick best {n_auto} (max coverage)", width="stretch"):
+        best = set(greedy_max_coverage(geoms_by_site, n_auto))
+        for s in sites:
+            st.session_state[f"site_{s}"] = s in best
+        st.rerun()
+
+    st.sidebar.subheader("Manual")
     ctrl_all, ctrl_none = st.sidebar.columns(2)
     if ctrl_all.button("All", width="stretch"):
         for s in sites:
