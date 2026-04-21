@@ -150,14 +150,26 @@ streamlit run visualize.py
 > `ModuleNotFoundError: No module named 'geopandas'`. The `uv run` form
 > avoids this entirely.
 
-Interactive web app that lets you pick a subset of sites from a sidebar
-multiselect, then displays:
+Interactive web app to inspect the GeoPackage produced by `export.py`.
 
-- A folium map of the selected viewsheds (CartoDB Positron basemap, colored
-  by site, hover tooltip with site name + area).
+**Sidebar — Sites**
+
+- *Auto-select* — pick a number `N` and click **"Pick best N (max
+  coverage)"**: a greedy max-coverage approximation chooses the N sites
+  whose combined viewsheds cover the largest area (each step adds the
+  site that grows the union the most, so complementary sites win over
+  near-duplicates). Greedy is provably ≥ (1 − 1/e) ≈ 63 % of optimum
+  and is essentially optimal at this scale.
+- *Manual* — All / None bulk toggles, then a vertical checkbox list with
+  every site visible at once.
+
+**Main panel**
+
 - Top-of-page metrics: number of sites selected, **total covered area
   (geometric union — overlap deduplicated)**, and the overlap surface
   (sum of per-site areas minus the union).
+- A folium map of the selected viewsheds (CartoDB Positron basemap,
+  colored by site, hover tooltip with site name + area).
 - A sortable per-site area table (km²).
 
 Areas are computed by reprojecting to a local UTM zone via
