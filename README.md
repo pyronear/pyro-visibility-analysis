@@ -30,6 +30,8 @@ This repository provides a script-based solution to:
 │   └── utils.py             # Helper functions
 ├── generate_dem.py         # Script to download and reproject DEM
 ├── main.py                 # Main QGIS execution script
+├── export.py               # Export viewsheds as KMZ overlays + GeoPackage polygons
+├── visualize.py            # Render the GeoPackage as an interactive HTML map
 └── README.md
 ```
 
@@ -106,6 +108,42 @@ After running `main.py`, you’ll find:
 
 ---
 
+## 📦 Export & Visualization
+
+Once `main.py` has produced the raw viewsheds, two helper scripts package them
+for delivery and quick inspection. Both read the same `folder = "<region>"`
+constant at the top of the file — change it to switch region.
+
+### `export.py`
+
+```bash
+python export.py
+```
+
+For each `viewshed_<site>.tif` in `data/<region>/output/viewsheds_geotiff/`:
+
+- **KMZ** — reprojects to WGS84, renders the visible pixels as a colored
+  semi-transparent PNG ground overlay, and writes one `<site>.kmz` per site
+  (Google Earth ready). Output: `kmz_output_<region>/`.
+- **GeoPackage** — polygonizes each binary raster into a single dissolved
+  `(Multi)Polygon` per site (vectorization in source CRS for accuracy, then
+  reprojected to WGS84), and writes them all to a single
+  `kmz_output_<region>/viewsheds_<region>.gpkg` file with one layer
+  (`viewsheds`) and a `site_name` attribute.
+
+### `visualize.py`
+
+```bash
+python visualize.py
+```
+
+Loads the GeoPackage and produces an interactive Leaflet map (via
+`geopandas.explore` + folium), colored by `site_name` over a CartoDB Positron
+basemap. Saves as `kmz_output_<region>/viewsheds_<region>.html` and opens it
+in the default browser. Requires `folium`, `matplotlib` and `mapclassify`.
+
+---
+
 ## ✅ Quick Start
 
 ```bash
@@ -121,6 +159,8 @@ Then:
 4. Load and **run `main.py`**
 5. After the script finishes, go to  
    **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
+6. Back in a regular shell, run `python export.py` to produce KMZ + GeoPackage
+   deliverables, and `python visualize.py` for an interactive HTML preview.
 
 > ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
 
