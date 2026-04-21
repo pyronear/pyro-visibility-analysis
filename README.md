@@ -31,7 +31,7 @@ This repository provides a script-based solution to:
 ├── generate_dem.py         # Script to download and reproject DEM
 ├── main.py                 # Main QGIS execution script
 ├── export.py               # Export viewsheds as KMZ overlays + GeoPackage polygons
-├── visualize.py            # Render the GeoPackage as an interactive HTML map
+├── visualize.py            # Streamlit app to explore viewsheds + per-site/total area stats
 └── README.md
 ```
 
@@ -131,16 +131,40 @@ For each `viewshed_<site>.tif` in `data/<region>/output/viewsheds_geotiff/`:
   `kmz_output_<region>/viewsheds_<region>.gpkg` file with one layer
   (`viewsheds`) and a `site_name` attribute.
 
-### `visualize.py`
+### `visualize.py` (Streamlit app)
+
+Recommended (zero-setup, isolated env via [uv](https://docs.astral.sh/uv/)):
 
 ```bash
-python visualize.py
+uv run --with-requirements requirements.txt streamlit run visualize.py
 ```
 
-Loads the GeoPackage and produces an interactive Leaflet map (via
-`geopandas.explore` + folium), colored by `site_name` over a CartoDB Positron
-basemap. Saves as `kmz_output_<region>/viewsheds_<region>.html` and opens it
-in the default browser. Requires `folium`, `matplotlib` and `mapclassify`.
+Or with the project venv directly (after `pip install -r requirements.txt`):
+
+```bash
+streamlit run visualize.py
+```
+
+> ⚠️ If you have a system/homebrew `streamlit` on your `PATH`, plain
+> `streamlit run` may pick *that* binary and fail with
+> `ModuleNotFoundError: No module named 'geopandas'`. The `uv run` form
+> avoids this entirely.
+
+Interactive web app that lets you pick a subset of sites from a sidebar
+multiselect, then displays:
+
+- A folium map of the selected viewsheds (CartoDB Positron basemap, colored
+  by site, hover tooltip with site name + area).
+- Top-of-page metrics: number of sites selected, **total covered area
+  (geometric union — overlap deduplicated)**, and the overlap surface
+  (sum of per-site areas minus the union).
+- A sortable per-site area table (km²).
+
+Areas are computed by reprojecting to a local UTM zone via
+`gdf.estimate_utm_crs()` so they are accurate regardless of region.
+
+Requires `streamlit`, `streamlit-folium`, `folium`, `matplotlib`,
+`mapclassify` (all in `requirements.txt`).
 
 ---
 
@@ -160,7 +184,8 @@ Then:
 5. After the script finishes, go to  
    **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
 6. Back in a regular shell, run `python export.py` to produce KMZ + GeoPackage
-   deliverables, and `python visualize.py` for an interactive HTML preview.
+   deliverables, then `streamlit run visualize.py` to explore the result with
+   per-site/total-area stats.
 
 > ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
 

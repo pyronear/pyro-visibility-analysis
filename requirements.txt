@@ -5,3 +5,8 @@ shapely
 numpy
 rasterio
 elevation
+folium
+matplotlib
+mapclassify
+streamlit
+streamlit-folium
