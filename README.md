@@ -20,7 +20,7 @@ This repository provides a script-based solution to:
 ```
 .
 ├── data/                    # Input & output data (CSV, DEM, results)
-│   ├── sdis-67/
+│   ├── sdis-77/
 │   │   ├── sites.csv        # Input coordinates
 │   │   ├── dem_l93.tif      # Projected DEM (EPSG:2154)
 │   │   └── output/          # Generated outputs (viewsheds, metrics)
@@ -58,7 +58,7 @@ This script:
 - Computes a bounding box with buffer
 - Downloads SRTM tiles using the `eio` CLI
 - Reprojects to `EPSG:2154`
-- Saves the result to `data/sdis-67/dem_l93.tif`
+- Saves the result to `data/sdis-77/dem_l93.tif`
 
 ---
 
@@ -101,10 +101,10 @@ This will:
 
 After running `main.py`, you’ll find:
 
-- Individual viewsheds: `data/sdis-67/output/viewsheds_geotiff/`
-- Normalized viewsheds: `data/sdis-67/output/normalized/`
-- Combined viewsheds: `data/sdis-67/output/fusion/`
-- Coverage metrics: `data/sdis-67/output/output.csv`
+- Individual viewsheds: `data/sdis-77/output/viewsheds_geotiff/`
+- Normalized viewsheds: `data/sdis-77/output/normalized/`
+- Combined viewsheds: `data/sdis-77/output/fusion/`
+- Coverage metrics: `data/sdis-77/output/output.csv`
 
 ---
 
@@ -152,25 +152,18 @@ streamlit run visualize.py
 
 Interactive web app to inspect the GeoPackage produced by `export.py`.
 
-**Sidebar — Sites**
+**Sidebar**
 
-- *Auto-select* — pick a number `N` and click **"Pick best N (max
-  coverage)"**: a greedy max-coverage approximation chooses the N sites
-  whose combined viewsheds cover the largest area (each step adds the
-  site that grows the union the most, so complementary sites win over
-  near-duplicates). Greedy is provably ≥ (1 − 1/e) ≈ 63 % of optimum
-  and is essentially optimal at this scale.
-- *Manual* — All / None bulk toggles, then a vertical checkbox list with
-  every site visible at once.
+- *Sites* — All / None bulk toggles, then a checkbox per site.
+- *Basemap* — switch between OpenStreetMap and Satellite (Esri imagery).
 
 **Main panel**
 
 - Top-of-page metrics: number of sites selected, **total covered area
   (geometric union — overlap deduplicated)**, and the overlap surface
   (sum of per-site areas minus the union).
-- A folium map of the selected viewsheds (CartoDB Positron basemap,
-  colored by site, hover tooltip with site name + area).
-- A sortable per-site area table (km²).
+- A folium map of the selected viewsheds (colored by site, hover tooltip
+  with site name + area) next to a sortable per-site area table (km²).
 
 Areas are computed by reprojecting to a local UTM zone via
 `gdf.estimate_utm_crs()` so they are accurate regardless of region.
@@ -207,7 +200,7 @@ Then:
 ## 📝 Notes
 
 - This project uses the **QGIS Visibility Analysis** processing tool under the hood.
-- Basemap is OpenStreetMap (via XYZ tiles), aligned with EPSG:2154.
+- Basemaps are OpenStreetMap or Esri satellite imagery (via XYZ tiles).
 - All coordinates are reprojected from `EPSG:4326` (lat/lon) to `EPSG:2154`.
 - Output rasters use LZW compression for performance.
 

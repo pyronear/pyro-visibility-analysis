@@ -13,7 +13,7 @@ from shapely.ops import unary_union
 from PIL import Image
 
 # === CONFIGURATION ===
-folder = "noord-limburg"
+folder = "sdis-77"
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 stations_csv_path = os.path.join(HERE, "data", folder, "sites.csv")

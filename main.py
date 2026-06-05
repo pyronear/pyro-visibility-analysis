@@ -41,7 +41,7 @@ def add_osm_background():
 
 # === Paths Setup ===
 VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
-CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-67/sites.csv")
+CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-77/sites.csv")
 OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")
 
 VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "viewsheds_geotiff")
