@@ -38,8 +38,8 @@ This repository provides a script-based solution to:
 ## 📦 Installation
 
 Dependencies are managed with [uv](https://docs.astral.sh/uv/) — no manual
-environment setup needed. `uv run` resolves and installs everything from
-`requirements.txt` into an isolated environment on first run.
+environment setup needed. `uv run` resolves and installs everything declared
+in `pyproject.toml` into an isolated environment on first run.
 
 ---
 
@@ -48,7 +48,7 @@ environment setup needed. `uv run` resolves and installs everything from
 You can now automatically download and project a DEM using:
 
 ```bash
-uv run --with-requirements requirements.txt python generate_dem.py
+uv run python generate_dem.py
 ```
 
 This script:
@@ -115,7 +115,7 @@ constant at the top of the file — change it to switch region.
 ### `export.py`
 
 ```bash
-uv run --with-requirements requirements.txt python export.py
+uv run python export.py
 ```
 
 For each `viewshed_<site>.tif` in `data/<region>/output/viewsheds_geotiff/`:
@@ -132,7 +132,7 @@ For each `viewshed_<site>.tif` in `data/<region>/output/viewsheds_geotiff/`:
 ### `visualize.py` (Streamlit app)
 
 ```bash
-uv run --with-requirements requirements.txt streamlit run visualize.py
+uv run streamlit run visualize.py
 ```
 
 Interactive web app to inspect the GeoPackage produced by `export.py`.
@@ -154,7 +154,7 @@ Areas are computed by reprojecting to a local UTM zone via
 `gdf.estimate_utm_crs()` so they are accurate regardless of region.
 
 Requires `streamlit`, `streamlit-folium`, `folium`, `matplotlib`,
-`mapclassify` (all in `requirements.txt`).
+`mapclassify` (all declared in `pyproject.toml`).
 
 ---
 
@@ -162,7 +162,7 @@ Requires `streamlit`, `streamlit-folium`, `folium`, `matplotlib`,
 
 ```bash
 # Step 1: Generate DEM
-uv run --with-requirements requirements.txt python generate_dem.py
+uv run python generate_dem.py
 ```
 
 Then:
@@ -174,9 +174,9 @@ Then:
 5. After the script finishes, go to  
    **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
 6. Back in a regular shell, run
-   `uv run --with-requirements requirements.txt python export.py` to produce
+   `uv run python export.py` to produce
    KMZ + GeoPackage deliverables, then
-   `uv run --with-requirements requirements.txt streamlit run visualize.py`
+   `uv run streamlit run visualize.py`
    to explore the result with per-site/total-area stats.
 
 > ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.

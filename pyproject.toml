@@ -1,0 +1,23 @@
+[project]
+name = "pyro-visibility-analysis"
+version = "0.1.0"
+description = "Coverage and visibility-zone analysis for PyroNear camera sites using QGIS and Python"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas",
+    "geopandas",
+    "rioxarray",
+    "shapely",
+    "numpy",
+    "rasterio",
+    "elevation",
+    "folium",
+    "matplotlib",
+    "mapclassify",
+    "streamlit",
+    "streamlit-folium",
+]
+
+[tool.uv]
+package = false
