@@ -4,7 +4,7 @@ import os
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
     QgsGeometry, QgsPointXY, QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform, QgsRasterLayer, QgsPainting, QgsVectorFileWriter, QgsWkbTypes, QgsFields
+    QgsCoordinateTransform, QgsRasterLayer, QgsVectorFileWriter
 )
 from PyQt5.QtCore import QVariant
 from qgis import processing
@@ -60,10 +60,9 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
             feature.setAttributes([Name_point, latitude, longitude])
             provider.addFeature(feature)
 
-            gpkg_obersvation_point_path = os.path.join(
+            gpkg_observation_point_path = os.path.join(
                 os.path.dirname(output), "observation_points", f"{Name_point}.gpkg")
 
-            print(gpkg_obersvation_point_path)
             options = QgsVectorFileWriter.SaveVectorOptions()
             options.driverName = "GPKG"
             options.layerName = "point"
@@ -71,13 +70,13 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
 
             QgsVectorFileWriter.writeAsVectorFormatV2(
                 reprojected_layer,
-                gpkg_obersvation_point_path,
+                gpkg_observation_point_path,
                 QgsProject.instance().transformContext(),
                 options
             )
 
             saved_layer = QgsVectorLayer(
-                f"{gpkg_obersvation_point_path}|layername=point",
+                f"{gpkg_observation_point_path}|layername=point",
                 f"Point_{Name_point}",
                 "ogr"
             )

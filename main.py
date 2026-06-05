@@ -1,4 +1,3 @@
-from analysis_shape import utils
 from analysis_shape.area_analysis import covered_surface
 from analysis_shape.utils import display_tif, normalize_create, create_template, write_data, add_osm_background
 from analysis_shape.viewshed import viewsheds_create
@@ -6,7 +5,6 @@ from qgis.core import (
     QgsProject,
     QgsCoordinateReferenceSystem
 )
-from analysis_shape.utils import display_tif
 from pathlib import Path
 import os
 import csv
