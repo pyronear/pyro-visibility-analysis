@@ -37,7 +37,7 @@ VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "viewsheds_geotiff")
 NORM_VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "normalized")
 OBSERVATION_POINTS_PATH = os.path.join(OUTPUT_DIR, "observation_points")
 FUSION_PATH = os.path.join(OUTPUT_DIR, "fusion")
-VIEWSHED_STYLE_FILE_PATH = os.path.join(OUTPUT_DIR, "viewshed_style.qml")
+VIEWSHED_STYLE_FILE_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "viewshed_style.qml")
 DEM_PROJECTED_PATH = os.path.join(os.path.dirname(CSV_PATH), "dem_l93.tif")
 OUTPUT_PATH = os.path.join(OUTPUT_DIR, "output.csv")
 

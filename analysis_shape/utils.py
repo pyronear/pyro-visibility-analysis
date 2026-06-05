@@ -23,9 +23,9 @@ def display_tif(file, group_name="viewsheds", style_file_path=None):
             print(
                 f"The CRS of the layer 'dem_file_projected' is {crs.authid()}.")
 
-            # Apply the same CRS to the new raster layer
-            # raster_layer.setCrs(crs)
-            raster_layer = processing.run(
+            # Reproject the raster to the DEM CRS. gdal:warpreproject
+            # returns the output file path, so wrap it back into a layer.
+            warped_path = processing.run(
                 "gdal:warpreproject",
                 {
                     "INPUT": raster_layer,
@@ -33,6 +33,7 @@ def display_tif(file, group_name="viewsheds", style_file_path=None):
                     "OUTPUT": "TEMPORARY_OUTPUT",
                 }
             )["OUTPUT"]
+            raster_layer = QgsRasterLayer(warped_path, layer_name)
 
         if style_file_path and os.path.exists(style_file_path):
             raster_layer.loadNamedStyle(str(style_file_path))
