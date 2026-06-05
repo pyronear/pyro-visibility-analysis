@@ -32,6 +32,7 @@ This repository provides a script-based solution to:
 ├── main.py                 # Main QGIS execution script
 ├── export.py               # Export viewsheds as KMZ overlays + GeoPackage polygons
 ├── visualize.py            # Streamlit app to explore viewsheds + per-site/total area stats
+├── viewshed_style.qml      # QGIS raster style applied to viewsheds
 └── README.md
 ```
 
@@ -43,9 +44,12 @@ in `pyproject.toml` into an isolated environment on first run.
 
 ---
 
-## 🌍 DEM Generation (automatic)
+## 🌍 Step 1: Automatic DEM Generation
 
-You can now automatically download and project a DEM using:
+You can automatically download and project a DEM (Digital Elevation Model):
+
+- In `generate_dem.py`, update `CSV_PATH` to the CSV containing the stations you want to analyse.
+- Then run:
 
 ```bash
 uv run python generate_dem.py
@@ -56,16 +60,26 @@ This script:
 - Computes a bounding box with buffer
 - Downloads SRTM tiles using the `eio` CLI
 - Reprojects to `EPSG:2154`
-- Saves the result to `data/sdis-77/dem_l93.tif`
+- Saves `dem_l93.tif` in the folder where the provided CSV is stored
 
 ---
 
-## 🛰️ Running the Analysis in QGIS
+## 🛰️ Step 2: Running the Analysis in QGIS
 
-1. Open **QGIS**
-2. Create a **new project**
-3. Open the **Python Console** → *Show Editor*
-4. Load and run `main.py`
+1. In `main.py`, update `CSV_PATH` to the CSV containing the stations you want to analyse.
+2. Open **QGIS**.
+3. Install the QGIS plugin **"Visibility Analysis"** (by Zoran Čučković) if you don't have it.
+4. Create a **new project** and save it in the `pyro-visibility-analysis` working directory (this avoids path issues later).
+5. Open the **Python Console** → *Show Editor*.
+6. If `analysis_shape` can't be imported, register the repo path first:
+   ```python
+   import sys
+   sys.path.append("/PATH_TO_THE_REPOSITORY/pyro-visibility-analysis")
+   ```
+7. Load and run `main.py`.
+8. Go to **Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93).
+
+> ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
 
 This will:
 - Load your DEM and OpenStreetMap as background
@@ -73,31 +87,13 @@ This will:
 - Compute overlaps and total coverage
 - Save results to `output.csv`
 
----
-
-## 🧠 Functionality
-
-### `viewshed.py`
-- Reads `sites.csv` with `Name`, `Latitude`, `Longitude`, `Height`
-- Reprojects points to `EPSG:2154`
-- Generates one `.tif` viewshed per point
-
-### `utils.py`
-- `normalize_create()` replaces no-data with zeros
-- `display_tif()` adds raster layer with style
-- `fusion_or()` and `fusion_and()` combine rasters
-
-### `area_analysis.py`
-- Uses `rasterio` to compute:
-  - Area covered per viewshed
-  - % of total coverage
-  - Pairwise overlaps between viewsheds
+To share the project, share the QGIS project file (`.qgz`) together with all data in the directory of the CSV you provided.
 
 ---
 
-## 📤 Output
+## 📤 Outputs
 
-After running `main.py`, you’ll find:
+After running `main.py`, you'll find (in the `output/` folder next to your `CSV_PATH`, e.g. for `sdis-77`):
 
 - Individual viewsheds: `data/sdis-77/output/viewsheds_geotiff/`
 - Normalized viewsheds: `data/sdis-77/output/normalized/`
@@ -158,31 +154,25 @@ Requires `streamlit`, `streamlit-folium`, `folium`, `matplotlib`,
 
 ---
 
-## ✅ Quick Start
+## 🧠 Functionality
 
-```bash
-# Step 1: Generate DEM
-uv run python generate_dem.py
-```
+### `viewshed.py`
+- Reads `sites.csv` with `Name`, `Latitude`, `Longitude`, `Height`
+- Reprojects points to `EPSG:2154`
+- Generates one `.tif` viewshed per point
 
-Then:
+### `utils.py`
+- `normalize_create()` replaces no-data with zeros
+- `display_tif()` adds raster layer with style
+- `fusion_or()` and `fusion_and()` combine rasters
 
-1. **Open QGIS**
-2. Create a **new project**
-3. Open the **Python Console** → *Show Editor*
-4. Load and **run `main.py`**
-5. After the script finishes, go to  
-   **Menu: Project → Properties → CRS** and set it to `EPSG:2154` (Lambert-93)
-6. Back in a regular shell, run
-   `uv run python export.py` to produce
-   KMZ + GeoPackage deliverables, then
-   `uv run streamlit run visualize.py`
-   to explore the result with per-site/total-area stats.
-
-> ℹ️ Note: Due to QGIS limitations, the project CRS might not fully apply during script execution. Manually setting it ensures all layers are correctly reprojected.
+### `area_analysis.py`
+- Uses `rasterio` to compute:
+  - Area covered per viewshed
+  - % of total coverage
+  - Pairwise overlaps between viewsheds
 
 ---
-
 
 ## 📝 Notes
 
@@ -190,4 +180,3 @@ Then:
 - Basemaps are OpenStreetMap or Esri satellite imagery (via XYZ tiles).
 - All coordinates are reprojected from `EPSG:4326` (lat/lon) to `EPSG:2154`.
 - Output rasters use LZW compression for performance.
-
