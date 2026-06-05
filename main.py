@@ -25,7 +25,13 @@ import importlib
 try:
     VISILITY_ANALYSIS_PATH = Path(__file__).resolve().parent
 except NameError:
-    VISILITY_ANALYSIS_PATH = Path(QgsProject.instance().fileName()).parent
+    project_file = QgsProject.instance().fileName()
+    if not project_file:
+        raise RuntimeError(
+            "Save the QGIS project inside the pyro-visibility-analysis "
+            "directory before running this script."
+        )
+    VISILITY_ANALYSIS_PATH = Path(project_file).resolve().parent
 
 CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-77/sites.csv")
 OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")

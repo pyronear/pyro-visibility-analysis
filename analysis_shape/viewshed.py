@@ -18,9 +18,8 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
     """
     Process CSV points to create viewsheds in order to perform reprojection, and area calculation.
     """
-    # Initialize groups
+    # Initialize groups (the "Viewsheds" group is created by display_tif)
     group_points = layer_tree_root.insertGroup(0, "Points_Hauts_Potentiels")
-    viewshed_group = layer_tree_root.insertGroup(1, "Viewsheds")
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
         lecteur_csv = csv.DictReader(csvfile, delimiter=';')
