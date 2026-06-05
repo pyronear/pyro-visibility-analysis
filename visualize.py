@@ -1,0 +1,115 @@
+import os
+import streamlit as st
+import geopandas as gpd
+from shapely.ops import unary_union
+from streamlit_folium import st_folium
+
+# === CONFIGURATION ===
+folder = "sdis-77"
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+gpkg_path = os.path.join(HERE, f"kmz_output_{folder}", f"viewsheds_{folder}.gpkg")
+layer = "viewsheds"
+
+
+@st.cache_data(show_spinner=False)
+def load_data(path, layer):
+    """Load the GeoPackage and pre-compute per-site area in km² using a local UTM CRS."""
+    gdf = gpd.read_file(path, layer=layer)
+    proj_crs = gdf.estimate_utm_crs()
+    gdf_proj = gdf.to_crs(proj_crs)
+    gdf["area_km2"] = gdf_proj.geometry.area / 1e6
+    return gdf, proj_crs
+
+
+def main():
+    st.set_page_config(page_title=f"Viewsheds — {folder}", layout="wide")
+    st.title(f"Viewshed coverage — {folder}")
+
+    if not os.path.exists(gpkg_path):
+        st.error(
+            f"GeoPackage not found at `{gpkg_path}`.\n\n"
+            "Run `python export.py` first to generate it."
+        )
+        return
+
+    gdf, proj_crs = load_data(gpkg_path, layer)
+    sites = sorted(gdf["site_name"].tolist())
+
+    for s in sites:
+        st.session_state.setdefault(f"site_{s}", True)
+
+    st.sidebar.header("Sites")
+
+    ctrl_all, ctrl_none = st.sidebar.columns(2)
+    if ctrl_all.button("All", width="stretch"):
+        for s in sites:
+            st.session_state[f"site_{s}"] = True
+    if ctrl_none.button("None", width="stretch"):
+        for s in sites:
+            st.session_state[f"site_{s}"] = False
+
+    st.sidebar.subheader("Basemap")
+    basemap = st.sidebar.selectbox(
+        "Background map",
+        ["OpenStreetMap", "Satellite"],
+        index=0,
+    )
+
+    selected = [
+        s for s in sites
+        if st.sidebar.checkbox(s, key=f"site_{s}")
+    ]
+
+    if not selected:
+        st.info("Select at least one site from the sidebar.")
+        return
+
+    sub = gdf[gdf["site_name"].isin(selected)].copy()
+    sub_proj = sub.to_crs(proj_crs)
+
+    union_geom = unary_union(sub_proj.geometry.values)
+    union_area_km2 = union_geom.area / 1e6
+    sum_area_km2 = float(sub["area_km2"].sum())
+    overlap_km2 = sum_area_km2 - union_area_km2
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Sites selected", len(selected))
+    c2.metric("Total covered area (union)", f"{union_area_km2:,.1f} km²")
+    c3.metric("Overlap (double-counted)", f"{overlap_km2:,.1f} km²")
+
+    sub_wgs = sub.to_crs("EPSG:4326")
+    if basemap == "Satellite":
+        tiles = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        attr = "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+    else:
+        tiles = basemap
+        attr = None
+    fmap = sub_wgs.explore(
+        column="site_name",
+        tooltip=["site_name", "area_km2"],
+        popup=True,
+        cmap="tab20",
+        style_kwds={"fillOpacity": 0.4, "weight": 1},
+        legend=True,
+        tiles=tiles,
+        attr=attr,
+    )
+
+    map_col, table_col = st.columns([3, 1])
+    with map_col:
+        st_folium(fmap, height=600, returned_objects=[], width=None)
+    with table_col:
+        st.subheader("Per-site area")
+        table = (
+            sub[["site_name", "area_km2"]]
+            .rename(columns={"site_name": "Site", "area_km2": "Area (km²)"})
+            .sort_values("Area (km²)", ascending=False)
+            .reset_index(drop=True)
+        )
+        table["Area (km²)"] = table["Area (km²)"].round(1)
+        st.dataframe(table, width="stretch", height=600)
+
+
+if __name__ == "__main__":
+    main()

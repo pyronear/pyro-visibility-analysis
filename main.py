@@ -20,15 +20,14 @@ import importlib
 
 
 # === Paths Setup ===
+# __file__ isn't defined when the script is run from the QGIS Python
+# Console, so fall back to the saved project's directory.
 try:
-    BASE_PATH = Path(__file__).resolve().parent
+    VISILITY_ANALYSIS_PATH = Path(__file__).resolve().parent
 except NameError:
-    BASE_PATH = Path(QgsProject.instance().fileName()).parent
+    VISILITY_ANALYSIS_PATH = Path(QgsProject.instance().fileName()).parent
 
-# VISILITY_ANALYSIS_PATH = os.path.dirname(__file__)
-VISILITY_ANALYSIS_PATH = BASE_PATH
-
-CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-67/sites.csv")
+CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-77/sites.csv")
 OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")
 
 VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "viewsheds_geotiff")

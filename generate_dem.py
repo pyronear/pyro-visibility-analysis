@@ -10,7 +10,7 @@ import os
 
 
 # === CONFIG ===
-CSV_PATH = "data/sdis-67/sites.csv"  # Update this path to your CSV
+CSV_PATH = "data/sdis-77/sites.csv"  # Update this path to your CSV
 OUTPUT_DIR = os.path.dirname(CSV_PATH)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 DEM_EIO_OUTPUT = os.path.join(OUTPUT_DIR, "srtm_dem.tif")

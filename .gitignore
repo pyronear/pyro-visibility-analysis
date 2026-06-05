@@ -1,5 +1,7 @@
 # Ignore generated files
 data/*
+# Ignore export.py outputs (KMZ overlays + GeoPackage)
+kmz_output_*/
 # Ignore any __pycache__ folder and its contents, anywhere
 **/__pycache__/
 
