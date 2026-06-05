@@ -15,13 +15,12 @@ Automated analysis of coverage and visibility zones using QGIS and Python.
    Site B;48.9000;2.4000;30
    ```
 
-3. Generate the DEM: `uv run python generate_dem.py`
-4. Open QGIS, then in the Python Console run `main.py`
-5. Export the results: `uv run python export.py`
-6. Visualize: `uv run streamlit run visualize.py`
-
-> Set the region by editing the `CSV_PATH` / `folder` constant at the top of
-> `generate_dem.py`, `main.py`, `export.py` and `visualize.py`.
+3. Set the region in `config.py`: `REGION = "sdis-xx"` (must match the folder
+   name under `data/`). All scripts read it from there.
+4. Generate the DEM: `uv run python generate_dem.py`
+5. Open QGIS, then in the Python Console run `main.py`
+6. Export the results: `uv run python export.py`
+7. Visualize: `uv run streamlit run visualize.py`
 
 See the sections below for details.
 
@@ -71,7 +70,7 @@ in `pyproject.toml` into an isolated environment on first run.
 
 You can automatically download and project a DEM (Digital Elevation Model):
 
-- In `generate_dem.py`, update `CSV_PATH` to the CSV containing the stations you want to analyse.
+- Set `REGION` in `config.py` to the region you want to analyse.
 - Then run:
 
 ```bash
@@ -89,7 +88,7 @@ This script:
 
 ## 🛰️ Step 2: Running the Analysis in QGIS
 
-1. In `main.py`, update `CSV_PATH` to the CSV containing the stations you want to analyse.
+1. Set `REGION` in `config.py` to the region you want to analyse.
 2. Open **QGIS**.
 3. Install the QGIS plugin **"Visibility Analysis"** (by Zoran Čučković) if you don't have it.
 4. Create a **new project** and save it in the `pyro-visibility-analysis` working directory (this avoids path issues later).
@@ -116,7 +115,7 @@ To share the project, share the QGIS project file (`.qgz`) together with all dat
 
 ## 📤 Outputs
 
-After running `main.py`, you'll find (in the `output/` folder next to your `CSV_PATH`, e.g. for `sdis-77`):
+After running `main.py`, you'll find (in the `output/` folder under your region, e.g. for `sdis-77`):
 
 - Individual viewsheds: `data/sdis-77/output/viewsheds_geotiff/`
 - Normalized viewsheds: `data/sdis-77/output/normalized/`
@@ -128,8 +127,7 @@ After running `main.py`, you'll find (in the `output/` folder next to your `CSV_
 ## 📦 Export & Visualization
 
 Once `main.py` has produced the raw viewsheds, two helper scripts package them
-for delivery and quick inspection. Both read the same `folder = "<region>"`
-constant at the top of the file — change it to switch region.
+for delivery and quick inspection. Both read the `REGION` set in `config.py`.
 
 ### `export.py`
 

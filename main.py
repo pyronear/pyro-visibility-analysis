@@ -33,7 +33,8 @@ except NameError:
         )
     VISILITY_ANALYSIS_PATH = Path(project_file).resolve().parent
 
-CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data/sdis-77/sites.csv")
+from config import REGION  # set the region in config.py
+CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data", REGION, "sites.csv")
 OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")
 
 VIEWSHEDS_PATH = os.path.join(OUTPUT_DIR, "viewsheds_geotiff")

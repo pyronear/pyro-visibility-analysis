@@ -10,7 +10,8 @@ import os
 
 
 # === CONFIG ===
-CSV_PATH = "data/sdis-77/sites.csv"  # Update this path to your CSV
+from config import REGION  # set the region in config.py
+CSV_PATH = f"data/{REGION}/sites.csv"
 OUTPUT_DIR = os.path.dirname(CSV_PATH)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 DEM_EIO_OUTPUT = os.path.join(OUTPUT_DIR, "srtm_dem.tif")

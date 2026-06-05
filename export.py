@@ -13,7 +13,8 @@ from shapely.ops import unary_union
 from PIL import Image
 
 # === CONFIGURATION ===
-folder = "sdis-77"
+from config import REGION  # set the region in config.py
+folder = REGION
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 stations_csv_path = os.path.join(HERE, "data", folder, "sites.csv")

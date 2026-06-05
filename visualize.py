@@ -5,7 +5,8 @@ from shapely.ops import unary_union
 from streamlit_folium import st_folium
 
 # === CONFIGURATION ===
-folder = "sdis-77"
+from config import REGION  # set the region in config.py
+folder = REGION
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 gpkg_path = os.path.join(HERE, f"kmz_output_{folder}", f"viewsheds_{folder}.gpkg")
