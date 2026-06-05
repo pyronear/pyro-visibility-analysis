@@ -4,6 +4,29 @@ Automated analysis of coverage and visibility zones using QGIS and Python.
 
 ---
 
+## 🚀 How to analyze sites
+
+1. Create a folder `data/sdis-xx/`
+2. Add the site info in `data/sdis-xx/sites.csv` (semicolon-delimited):
+
+   ```csv
+   Name;Latitude;Longitude;Height
+   Site A;48.8566;2.3522;30
+   Site B;48.9000;2.4000;30
+   ```
+
+3. Generate the DEM: `uv run python generate_dem.py`
+4. Open QGIS, then in the Python Console run `main.py`
+5. Export the results: `uv run python export.py`
+6. Visualize: `uv run streamlit run visualize.py`
+
+> Set the region by editing the `CSV_PATH` / `folder` constant at the top of
+> `generate_dem.py`, `main.py`, `export.py` and `visualize.py`.
+
+See the sections below for details.
+
+---
+
 ## 🔍 Overview
 
 This repository provides a script-based solution to:
