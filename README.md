@@ -322,8 +322,8 @@ This script:
 
 This will:
 - Load your DEM and OpenStreetMap as background
-- Generate and normalize viewsheds
-- Compute overlaps and total coverage
+- Generate and normalize viewsheds, printing `[i/N] <site>` as it goes
+- Compute each site's area and the union of all viewsheds
 - Save results to `output.csv`
 
 To share the project, share the QGIS project file (`.qgz`) together with all data in the directory of the CSV you provided.
@@ -539,8 +539,7 @@ Requires `streamlit`, `streamlit-folium`, `folium`, `matplotlib`,
 ### `area_analysis.py`
 - Uses `rasterio` to compute:
   - Area covered per viewshed
-  - % of total coverage
-  - Pairwise overlaps between viewsheds
+  - % of total coverage (share of the union)
 
 ---
 

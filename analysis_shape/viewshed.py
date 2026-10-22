@@ -109,9 +109,9 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
     _write_run_metadata(output, radius_m, target_height_m)
 
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
-        lecteur_csv = csv.DictReader(csvfile, delimiter=';')
+        lecteur_csv = list(csv.DictReader(csvfile, delimiter=';'))
 
-        for i, ligne in enumerate(lecteur_csv):
+        for i, ligne in enumerate(lecteur_csv, 1):
 
             # ANFR/BD TOPO addresses sometimes carry a character illegal in
             # a path ('/' in a motorway address such as « A6 >Paris/Aire de
@@ -124,6 +124,10 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
             Name_point = re.sub(r'[/\\:*?"<>|]', '-', ligne['Name'])
 
             output_file = os.path.join(output, f"viewshed_{Name_point}.tif")
+            # A large pool runs for hours in the QGIS console: say where it is.
+            done = os.path.exists(output_file)
+            print(f"[{i}/{len(lecteur_csv)}] {Name_point}"
+                  f"{' — already computed, skipped' if done else ''}")
 
             latitude = float(ligne['Latitude'])
             longitude = float(ligne['Longitude'])

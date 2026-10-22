@@ -1,7 +1,7 @@
 """Readable coverage summary, plus a QGIS-ready points layer.
 
-`output.csv` holds the numbers but in square metres and next to the full
-pairwise overlap matrix, which makes it awkward to read while working in QGIS.
+`output.csv` holds the numbers but in square metres, which makes it awkward to
+read while working in QGIS.
 This writes two things in the region's output folder:
 
     summary.csv               site, area in km², share of the viewshed disc

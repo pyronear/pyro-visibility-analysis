@@ -124,22 +124,6 @@ def coverage(file):
     return pixel_size_x * pixel_size_y * visible
 
 
-def intersection_coverage(file_a, file_b):
-    """Surface visible from both viewsheds, without writing an intermediate raster.
-
-    `covered_surface` used to materialise one `fusion_and_<a>_<b>.tif` per pair
-    only to count its pixels — N*(N-1)/2 files for nothing.
-    """
-    with rasterio.open(file_a) as src_a, rasterio.open(file_b) as src_b:
-        _check_same_grid([src_a, src_b])
-        pixel_size_x, pixel_size_y = src_a.res
-        shared = 0
-        for window in _row_windows(src_a):
-            shared += int(np.logical_and(_visible(src_a, window),
-                                         _visible(src_b, window)).sum())
-    return pixel_size_x * pixel_size_y * shared
-
-
 def coverage_out_of_total_coverage(file, total_file):
     total_coverage = coverage(total_file)
     cov = coverage(file)
@@ -156,42 +140,29 @@ def reccurent_coverage(file, total_file):
 
 
 def covered_surface(norm_viewsheds_path, fusion_path, csv_path):
+    """Per-site surface and share of the union, plus the union raster itself.
+
+    This used to add an N×N matrix of pairwise overlaps. Nothing downstream
+    read it (summary.py only takes `Site` and `Surface`), and it dominated the
+    end of main.py: 137 sites meant 9 316 pairs, each re-reading two full
+    rasters. Overlap questions are answered by the union and by the scenario
+    count rasters instead.
+    """
     norm_tif_files = [os.path.join(norm_viewsheds_path, f).replace("\\", "/")
                       for f in os.listdir(norm_viewsheds_path) if f.endswith(".tif")]
     fusion_file = os.path.join(
         fusion_path,
         f"fusion_or_all_{os.path.splitext(os.path.basename(csv_path))[0]}.tif")
     fusion_or(norm_tif_files, fusion_file)
+    total = coverage(fusion_file)
 
     output = {}
-
-    for path in norm_tif_files:
+    for index, path in enumerate(norm_tif_files, 1):
         name = os.path.basename(path).replace(
             "norm_viewshed_", "").rsplit(".", 1)[0]
-        output.setdefault(name, {})
-        output[name].setdefault("Surface", None)
-        output[name].setdefault("% du total", None)
-        for path2 in norm_tif_files:
-            name2 = os.path.basename(path2).replace(
-                "norm_viewshed_", "").rsplit(".", 1)[0]
-            output[name].setdefault(name2, None)
-
-    for path in norm_tif_files:
-        name = os.path.basename(path).replace(
-            "norm_viewshed_", "").rsplit(".", 1)[0]
-        output[name]["Surface"] = coverage(path)
-        output[name]["% du total"] = coverage_out_of_total_coverage(
-            path, fusion_file)
-
-        other_paths = [x for x in norm_tif_files if x != path]
-        output[name].setdefault(name, 1)
-        for path2 in other_paths:
-            name2 = os.path.basename(path2).replace(
-                "norm_viewshed_", "").rsplit(".", 1)[0]
-            if output[name][name2] is None:
-                cov = intersection_coverage(path, path2)
-                output[name][name2] = cov
-                output[name2][name] = cov
-        print(f"{name} added to the dictionary")
+        surface = coverage(path)
+        output[name] = {"Surface": surface,
+                        "% du total": surface / total if total else 0}
+        print(f"[{index}/{len(norm_tif_files)}] {name} — {surface / 1e6:.1f} km²")
 
     return output
