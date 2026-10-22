@@ -10,6 +10,7 @@ dependencies = [
     "rioxarray",
     "shapely",
     "numpy",
+    "openpyxl",
     "rasterio",
     "elevation",
     "folium",
