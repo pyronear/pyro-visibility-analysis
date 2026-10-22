@@ -20,3 +20,7 @@ kmz_output_*/
 # package_project.py's staging folders and zips: delivery artifacts, not source
 livraison_*/
 livraison_*.zip
+
+# Local notes for Claude Code: personal and region-specific, never versioned
+CLAUDE.local.md
+.claude/settings.local.json
