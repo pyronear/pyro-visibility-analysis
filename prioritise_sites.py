@@ -40,6 +40,7 @@ import rasterio  # noqa: E402
 
 from config import REGION  # noqa: E402
 from analysis_shape.gestionnaires import categoriser, charger  # noqa: E402
+from analysis_shape.selection import WindowedMask, greedy_pick  # noqa: E402
 from analysis_shape.zones import load_zones  # noqa: E402
 
 os.environ.setdefault("OGR_GEOJSON_MAX_OBJ_SIZE", "0")
@@ -182,37 +183,33 @@ def main():
 
     objectif_km2 = objectif.reference_km2
 
-    def greedy(pool, label):
-        """Repeatedly take the site adding the most of `objectif` not yet covered."""
+    categories = dict(zip(table["site"], table["categorie"]))
+    masks = {r.site: WindowedMask(read_mask(paths[r.site]))
+             for r in candidates.itertuples()}
+
+    def greedy(max_operateurs, label):
+        """Repeatedly take the site adding the most of `objectif` not yet covered.
+
+        Same implementation as scenario_layers.py (analysis_shape/selection.py),
+        so a ranking printed here can never disagree with a scenario built there.
+        """
         print(f"\n{label}\n")
-        covered = baseline.copy()
-        remaining = dict(pool)
         results = []
-        for step in range(1, args.picks + 1):
-            best, best_gain, best_mask = None, -1, None
-            for name, path in remaining.items():
-                mask = read_mask(path)
-                gain = objectif.covered_km2(mask & ~covered)
-                if gain > best_gain:
-                    best, best_gain, best_mask = name, gain, mask
-            if best is None or best_gain <= 0:
-                break
-            covered |= best_mask
-            del remaining[best]
-            total = objectif.covered_km2(covered)
-            results.append((best, best_gain, total))
-            print(f"  {step}. {best:<{width}} +{best_gain:>6.0f} km² "
+
+        def report(step, name, gain, reached):
+            total = reached * cell_km2
+            results.append((name, gain * cell_km2, total))
+            print(f"  {step}. {name:<{width}} +{gain * cell_km2:>6.0f} km² "
                   f"→ total {total:>6.0f} km² "
                   f"({100 * total / objectif_km2:.1f} % of « {objectif.name} »)")
+
+        greedy_pick(masks, objectif.mask, baseline_masks=[baseline],
+                    picks=args.picks, on_pick=report,
+                    categories=categories, max_operateurs=max_operateurs)
         return results
 
-    all_pool = {r.site: paths[r.site] for r in candidates.itertuples()}
-    public_pool = {r.site: paths[r.site] for r in candidates.itertuples()
-                   if r.categorie == "public"}
-
-    open_run = greedy(all_pool, f"Scenario A — all sites ({args.picks} picks)")
-    public_run = greedy(public_pool,
-                        f"Scenario B — public sites only ({args.picks} picks)")
+    open_run = greedy(None, f"Scenario A — all sites ({args.picks} picks)")
+    public_run = greedy(0, f"Scenario B — public sites only ({args.picks} picks)")
 
     if open_run and public_run:
         print("\nWhat the operator sites buy\n")
