@@ -7,7 +7,9 @@ sites.
 Several traps in this project cost one to several hours when discovered the
 hard way. **Read « Pitfalls » before running anything.** The step-by-step
 reference, with a check after each step and a worked example, is
-**README.md § « The whole chain »**; when the two disagree, the README wins.
+**README.md § « Quick start »**; every script's options, the output files and
+the user-facing pitfalls are in **docs/reference.md**. When they disagree with
+this file, those two win.
 
 Personal or region-specific notes go in `CLAUDE.local.md`, which is ignored by
 git.
@@ -62,39 +64,37 @@ reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 
 ---
 
-## The chain for a new region (summary)
+## The chain for a new region (mirrors README « Quick start »)
 
 ```bash
-cp -R data/example data/<region>        # then edit sites.csv, scenarios.json
-# config.py → REGION = "<region>"
-# sites.csv: Name;Latitude;Longitude;Owner;Height;Status
-#   Height = camera height ABOVE GROUND, never an NGF altitude
-# From a partner spreadsheet instead:
-#   uv run python resolve_points_hauts.py --region <region> \
-#       --xlsx data/<region>/<list>.xlsx --dept <NN>
-#   then READ data/<region>/resolution.csv (column « alertes »). Communes the
-#   geo API does not recognise (« commune not found ») go in the optional
-#   data/<region>/commune_alias.json, {"OLD NAME": "MERGED NAME"}.
-
-uv run python audit_sites.py --region <region>             # heights, BEFORE anything
-uv run python experiments/generate_dem_fr.py               # 5 m MNS; buffer = radius + 1 km
-uv run python experiments/fill_dem_gaps.py                 # if nodata > 0
-uv run python experiments/downsample_dem.py --factor 2 --method max
-mv data/<region>/dem_l93.tif     data/<region>/dem_l93_5m.tif
-mv data/<region>/dem_l93_10m.tif data/<region>/dem_l93.tif # work at 10 m
-
-# QGIS: NEW project, SAVED inside the repository, CRS EPSG:2154
-#   Python console → main.py   (prints [i/N] <site> as it goes)
-
-uv run python summary.py --zones dept --dept <NN>
-uv run python prioritise_sites.py --zones dept --dept <NN> --picks <n>
-uv run python scenario_layers.py --all
-uv run python scenario_layers.py --figer            # freeze rules into lists
-uv run python make_scenarios_md.py
-
-# Delivery: QGIS console → build_qgis_project.py, then
+# 1. [Terminal] cp -R data/example data/<region>; config.py → REGION,
+#    VIEWSHED_RADIUS_M, TARGET_HEIGHT_M (decide the target height now)
+# 2. [Terminal] sites.csv: Name;Latitude;Longitude;Owner;Height;Status
+#    (Height = camera height ABOVE GROUND, never NGF); scenarios.json:
+#    "regions", "zone", "dept". From a partner spreadsheet instead:
+#    resolve_points_hauts.py, then READ resolution.csv (statut, alertes);
+#    unknown communes → optional data/<region>/commune_alias.json
+uv run python audit_sites.py --region <region>                    # 3
+uv run python experiments/generate_dem_fr.py --region <region>    # 4, buffer = radius + 1 km
+#    only if nodata > 0 → fill_dem_gaps.py; only if too slow at 5 m →
+#    downsample_dem.py --method max + the two mv; only if a mast blocks its
+#    own camera → flatten_mast.py
+# 5. [QGIS Python console] new project saved in the repo → main.py
+#    (check « ▶ REGION = … », then [i/N] per site)
+uv run python summary.py --region <region> --zones dept           # 6
+uv run python prioritise_sites.py --region <region> --zones dept --picks <n>
+uv run python scenario_layers.py --region <region> --all          # 7 (--figer before delivery)
+# 8. [QGIS Python console] exec(open('…/build_qgis_project.py').read())
+uv run python make_scenarios_md.py --region <region>              # 9, before packaging
 uv run python package_project.py <project>.qgz --light-dem 50
 ```
+
+**The département has one source**: `"dept"` in `data/<region>/scenarios.json`,
+read by `zones.region_dept()`; `--dept` only overrides it. It is required only
+by the `dept` zone and the ANFR scripts (`resolve_points_hauts.py`,
+`find_anfr_candidates.py`), which fail with a message saying where to set it.
+Outside France or with a custom zone (`data/<region>/zones/<name>.gpkg`),
+leave it out. Do not reintroduce a hardcoded default.
 
 ---
 
