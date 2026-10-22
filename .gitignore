@@ -1,5 +1,11 @@
-# Ignore generated files
+# Ignore generated files — all region data is local, except the fictitious
+# example region, whose inputs (not its outputs) are versioned as a template
 data/*
+!data/example/
+data/example/*
+!data/example/sites.csv
+!data/example/scenarios.json
+!data/example/README.md
 # Ignore export.py outputs (KMZ overlays + GeoPackage)
 kmz_output_*/
 # Ignore any __pycache__ folder and its contents, anywhere
@@ -8,3 +14,9 @@ kmz_output_*/
 # macOS system files
 .DS_Store
 **/.DS_Store
+# QGIS projects: each analysis creates its own, none belongs in the repo
+*.qgz
+*.qgz~
+# package_project.py's staging folders and zips: delivery artifacts, not source
+livraison_*/
+livraison_*.zip

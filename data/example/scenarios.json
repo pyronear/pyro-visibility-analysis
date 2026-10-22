@@ -1,0 +1,23 @@
+{
+  "_note": "Région fictive servant de modèle. Copier ce dossier vers data/<ma-region>/ et adapter.",
+  "regions": ["example"],
+  "zone": "dept",
+  "dept": "77",
+  "zone_libelle": "département",
+  "critere": "couverture",
+  "gestionnaires": {
+    "_note": "Correspondance libellé Owner → catégorie de coût d'accès, sur sous-chaîne sans accent ni casse. Un gestionnaire inconnu tombe dans « defaut ».",
+    "defaut": "operateur",
+    "public": ["SDIS", "Commune", "Syndicat des eaux", "Gestionnaire public"],
+    "delegataire": ["SUEZ", "VEOLIA"],
+    "operateur": ["TDF", "ORANGE", "SFR", "BOUYGUES", "FREE", "TOTEM"]
+  },
+  "scenarios": {
+    "00-tous": {"tous": true},
+    "01-en-place": {"en_place": true},
+    "02-liste-explicite": {"sites": ["chateau-eau-a", "tour-exemple"]},
+    "03-en-place-plus-2": {"en_place": true, "meilleurs": 2},
+    "04-max-1-operateur": {"en_place": true, "meilleurs": 3, "max_operateurs": 1},
+    "05-triangulation-cible-50": {"en_place": true, "cible_pct": 50, "critere": "triangulation"}
+  }
+}

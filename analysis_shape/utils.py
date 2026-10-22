@@ -54,12 +54,20 @@ def display_tif(file, group_name="viewsheds", style_file_path=None):
 
 
 def normalize(file_path, output_path):
-    file_name = file_path.split("/")[-1].split(".")[0]
+    # RTYPE 0 is Byte: the result only ever holds 0 or 1, so writing it as
+    # Float32 (RTYPE 5) wasted 4 bytes per pixel. With DEFLATE on top, a
+    # normalized viewshed shrinks by one to two orders of magnitude — which
+    # matters at 5 m, where a single Float32 raster is ~400 MB.
+    # splitext, not split("."): a site named « 1.1 SITE A » carries a dot, and
+    # cutting at the first one turned « viewshed_1.1 SITE A.tif » into
+    # « norm_viewshed_1 » — silently overwriting « 1.2 SITE B » with it.
+    file_name = os.path.splitext(os.path.basename(file_path))[0]
     processing.run("gdal:rastercalculator", {'INPUT_A': file_path, 'BAND_A': 1, 'INPUT_B': None, 'BAND_B': None,
                                              'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None,
                                              'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None,
-                                             'FORMULA': 'nan_to_num(A)', 'NO_DATA': None, 'EXTENT_OPT': 0,
-                                             'PROJWIN': None, 'RTYPE': 5, 'OPTIONS': '', 'EXTRA': '',
+                                             'FORMULA': '(nan_to_num(A) > 0) * 1', 'NO_DATA': None, 'EXTENT_OPT': 0,
+                                             'PROJWIN': None, 'RTYPE': 0,
+                                             'OPTIONS': 'COMPRESS=DEFLATE|ZLEVEL=9|TILED=YES', 'EXTRA': '',
                                              'OUTPUT': os.path.join(output_path, f"norm_{file_name}.tif")})
     print(f"{file_name} normalized and saved to {os.path.join(output_path, f'norm_{file_name}.tif')}")
 
@@ -71,7 +79,7 @@ def normalize_create(viewsheds_path, output_path):
         if file_name.endswith(".tif"):
             file_path = os.path.join(
                 viewsheds_path, f"{file_name}").replace("\\", "/")
-            name = file_path.split("/")[-1].split(".")[0]
+            name = os.path.splitext(file_name)[0]
             output = os.path.join(output_path, f"norm_{name}.tif")
             if os.path.exists(output):
                 print(f"{file_name} already normalized. See {output}")
