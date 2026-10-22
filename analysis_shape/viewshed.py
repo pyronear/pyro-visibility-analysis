@@ -15,6 +15,9 @@ from analysis_shape.terrain import load_cache, observer_height
 from analysis_shape.utils import display_tif
 # Constant
 DEFAULT_HEIGHT = 30  # in meters, above bare ground (not an NGF altitude)
+# The envelope hardcoded before run.json existed: viewsheds found without a
+# run.json are assumed to have been computed with it.
+LEGACY_ENVELOPE = {"viewshed_radius_m": 15000, "target_height_m": 20}
 
 
 def _detection_envelope():
@@ -48,32 +51,37 @@ def _write_run_metadata(output, radius_m, target_height_m):
     path = os.path.join(os.path.dirname(output), "run.json")
     current = {"viewshed_radius_m": radius_m, "target_height_m": target_height_m}
 
+    existing = glob.glob(os.path.join(output, "*.tif"))
+    previous = None
     if os.path.exists(path):
         try:
             with open(path, encoding="utf-8") as handle:
                 previous = json.load(handle)
         except (ValueError, OSError):
             previous = None
-        if previous:
-            differences = [
-                (key, previous.get(key), current[key])
-                for key in current
-                if previous.get(key) is not None and previous[key] != current[key]
-            ]
-            existing = glob.glob(os.path.join(output, "*.tif"))
-            if differences and existing:
-                detail = "\n".join(
-                    f"     {key} : {was} → {now}" for key, was, now in differences)
-                raise RuntimeError(
-                    f"Les {len(existing)} viewsheds de ce dossier ont été "
-                    f"calculés avec d'autres paramètres :\n{detail}\n"
-                    f"   Ils seraient réutilisés tels quels et le nouveau "
-                    f"réglage ignoré.\n"
-                    f"   Deux options :\n"
-                    f"     · comparer deux réglages → créer data/<region>-<variante>/ "
-                    f"avec le même sites.csv et un lien vers le DEM\n"
-                    f"     · remplacer → supprimer {output}/ et "
-                    f"{os.path.dirname(output)}/normalized/")
+    elif existing:
+        # Viewsheds without a run.json predate it: they were computed with the
+        # envelope then hardcoded, so compare against that.
+        previous = LEGACY_ENVELOPE
+    if previous:
+        differences = [
+            (key, previous.get(key), current[key])
+            for key in current
+            if previous.get(key) is not None and previous[key] != current[key]
+        ]
+        if differences and existing:
+            detail = "\n".join(
+                f"     {key} : {was} → {now}" for key, was, now in differences)
+            raise RuntimeError(
+                f"Les {len(existing)} viewsheds de ce dossier ont été "
+                f"calculés avec d'autres paramètres :\n{detail}\n"
+                f"   Ils seraient réutilisés tels quels et le nouveau "
+                f"réglage ignoré.\n"
+                f"   Deux options :\n"
+                f"     · comparer deux réglages → créer data/<region>-<variante>/ "
+                f"avec le même sites.csv et un lien vers le DEM\n"
+                f"     · remplacer → supprimer {output}/ et "
+                f"{os.path.dirname(output)}/normalized/")
 
     try:
         with open(path, "w", encoding="utf-8") as handle:

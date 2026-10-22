@@ -23,6 +23,7 @@ MNT(site), so OBS_HEIGHT falls back to the plain mast height.
 """
 
 import json
+import math
 import os
 import urllib.parse
 import urllib.request
@@ -102,6 +103,25 @@ def _fetch_from_layer(layer, x, y, half_size, resolution):
     return float(np.median(valid)) if valid.size else None
 
 
+# A cached ground elevation is reused only while the site stays within this
+# distance of the position it was measured at.
+CACHE_MOVE_TOLERANCE_M = 5.0
+
+
+def cached_ground(cache, site_name, x, y):
+    """Ground elevation cached for this site, or None if it must be fetched.
+
+    Entries are {"ground", "x", "y"}, so a site whose coordinates were
+    corrected is measured again. Older caches stored a bare number: those
+    entries are trusted as they are, which avoids re-downloading every site.
+    """
+    entry = cache.get(site_name)
+    if isinstance(entry, dict):
+        moved = math.hypot(entry.get("x", x) - x, entry.get("y", y) - y)
+        return entry.get("ground") if moved <= CACHE_MOVE_TOLERANCE_M else None
+    return entry
+
+
 def _cache_path(csv_path):
     return os.path.join(os.path.dirname(csv_path), CACHE_NAME)
 
@@ -131,12 +151,14 @@ def observer_height(site_name, x, y, mast_height, dem_path, csv_path, cache):
     Falls back to `mast_height` — the previous behaviour — whenever the MNT is
     unavailable, and says so, so a silent wrong number never goes unnoticed.
     """
-    if site_name in cache:
-        ground = cache[site_name]
-    else:
+    ground = cached_ground(cache, site_name, x, y)
+    if ground is None:
         ground = fetch_ground_elevation(x, y)
-        cache[site_name] = ground
-        save_cache(csv_path, cache)
+        # Only a value is worth keeping. Caching a failure (None) turned one
+        # network timeout into a permanently disabled correction for the site.
+        if ground is not None:
+            cache[site_name] = {"ground": ground, "x": round(x, 1), "y": round(y, 1)}
+            save_cache(csv_path, cache)
 
     surface = sample_raster(dem_path, x, y)
 

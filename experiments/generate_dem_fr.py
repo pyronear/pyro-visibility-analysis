@@ -65,7 +65,10 @@ from rasterio.transform import from_origin  # noqa: E402
 from rasterio.windows import Window  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import REGION  # noqa: E402  (needs the path fix above)
+from analysis_shape.config_loader import load_config  # noqa: E402  (needs the path fix above)
+
+_config = load_config()
+REGION = _config.REGION
 
 # === CONFIG ===
 WMS_URL = "https://data.geopf.fr/wms-r"
@@ -85,9 +88,11 @@ LAYERS = {
 TARGET_CRS = "EPSG:2154"
 NODATA = -9999.0
 
-# The viewshed radius in analysis_shape/viewshed.py. Anything beyond it can
-# never be visible, so the DEM buffer is derived from it instead of hardcoded.
-VIEWSHED_RADIUS_M = 15000
+# The viewshed radius main.py will use. Anything beyond it can never be
+# visible, so the DEM buffer is derived from it. It used to be hardcoded at
+# 15 km here while config.py moved to 20 km: the default DEM then clipped the
+# horizon of every viewshed, silently.
+VIEWSHED_RADIUS_M = getattr(_config, "VIEWSHED_RADIUS_M", 15000)
 BUFFER_MARGIN_M = 1000  # small margin so the horizon isn't clipped exactly
 
 CHUNK_PX = 2000  # request size; 2000x2000 float32 ≈ 16 MB per request
@@ -242,7 +247,8 @@ def main():
                         help="output pixel size in metres (default: 5)")
     parser.add_argument("--buffer-km", type=float, default=None,
                         help="buffer around the sites; defaults to the viewshed "
-                             "radius (15 km) plus a 1 km margin")
+                             f"radius from config.py ({VIEWSHED_RADIUS_M / 1000:g} km) "
+                             "plus a 1 km margin")
     parser.add_argument("--output", default=None,
                         help="output path (default: data/<region>/dem_l93.tif)")
     args = parser.parse_args()
