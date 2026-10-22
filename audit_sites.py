@@ -126,7 +126,7 @@ def main():
         mnt = sample(MNT_LAYER, x, y, STRUCTURE_HALF_M, 1.0)
         if mnt is None:
             rows.append((site.Name, site.Height, None, None,
-                         "HORS COUVERTURE LIDAR", True))
+                         "OUTSIDE LIDAR COVERAGE", True))
             continue
         mns = sample(MNS_LAYER, x, y, STRUCTURE_HALF_M, 1.0)
         ground = float(np.nanmedian(mnt))

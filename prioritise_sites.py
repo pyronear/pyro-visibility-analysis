@@ -20,7 +20,7 @@ Sites marked `EN PLACE` in the Owner column form the baseline.
 
 Usage:
     uv run python prioritise_sites.py                          # OLD, as before
-    uv run python prioritise_sites.py --dept 77 --picks 5
+    uv run python prioritise_sites.py --zones dept --picks 5  # dept from scenarios.json
     uv run python prioritise_sites.py --zones dept --dept 77   # no OLD available
     uv run python prioritise_sites.py --zones dept,old --objectif old
 """
@@ -72,9 +72,10 @@ def read_mask(path):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--region", default=REGION)
-    parser.add_argument("--dept", default="036",
-                        help="département code, used to filter the OLD layer "
-                             "and to build the « dept » zone")
+    parser.add_argument("--dept", default=None,
+                        help="département code for the « dept » zone and to "
+                             "filter the OLD layer (default: \"dept\" in "
+                             "data/<region>/scenarios.json)")
     parser.add_argument("--zones", default="old",
                         help="comma-separated zones of interest to report: "
                              "old, dept, or any data/<region>/zones/<name>.gpkg")

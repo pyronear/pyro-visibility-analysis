@@ -29,7 +29,7 @@ Optional per-region inputs, under data/<region>/:
   sites_installes.json   cameras already installed, whose position wins
 
     uv run python resolve_points_hauts.py --region example \
-        --xlsx data/example/points_hauts.xlsx --dept 77
+        --xlsx data/example/points_hauts.xlsx   # dept from scenarios.json
 """
 
 from __future__ import annotations
@@ -56,6 +56,8 @@ import openpyxl
 import rasterio
 from pyproj import Transformer
 from shapely.geometry import shape, Point
+
+from analysis_shape.zones import region_dept
 
 REPO = Path(__file__).resolve().parent
 
@@ -681,7 +683,9 @@ def main() -> None:
     ap.add_argument("--xlsx", required=True, type=Path,
                     help="the partner's spreadsheet of high points")
     ap.add_argument("--region", required=True, help="folder under data/")
-    ap.add_argument("--dept", required=True, help="département code, e.g. 77")
+    ap.add_argument("--dept", default=None,
+                    help="département code, e.g. 77 (default: \"dept\" in "
+                         "data/<region>/scenarios.json)")
     ap.add_argument("--anfr", type=Path,
                     default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson",
                     help="ANFR SUP_SUPPORT.geojson export (default: ~/Downloads)")
@@ -697,6 +701,10 @@ def main() -> None:
                          "i.e. BD TOPO, then lidar, then ANFR)")
     args = ap.parse_args()
 
+    args.dept = region_dept(args.region, args.dept)
+    if not args.dept:
+        raise SystemExit(f"❌ no département: set \"dept\" in "
+                         f"data/{args.region}/scenarios.json, or pass --dept")
     outdir = REPO / "data" / args.region
     outdir.mkdir(parents=True, exist_ok=True)
     COMMUNE_ALIAS.update(load_commune_alias(outdir / "commune_alias.json"))

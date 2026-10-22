@@ -73,7 +73,7 @@ class Zone:
 
 
 def _normalise_dept(dept):
-    """`036` in the OLD layer, `91` in the API — accept either spelling."""
+    """`077` in the OLD layer, `77` in the API — accept either spelling."""
     d = str(dept).strip()
     return d.zfill(3), d.lstrip("0") or d
 
@@ -104,6 +104,25 @@ def _dept_gdf(region, dept):
     return gdf
 
 
+def region_dept(region, dept=None):
+    """The région's département: `dept` if given, else `"dept"` in scenarios.json.
+
+    scenarios.json is the one place a region declares its département, so the
+    scripts do not each carry a default. None when neither says anything —
+    which is fine outside France, or with a zone of one's own
+    (data/<region>/zones/<name>.gpkg); only the « dept » zone needs it.
+    """
+    if dept:
+        return str(dept).strip()
+    path = os.path.join("data", region, "scenarios.json")
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as handle:
+            value = json.load(handle).get("dept")
+        if value:
+            return str(value).strip()
+    return None
+
+
 def _zone_gdf(region, name, dept):
     if name == "old":
         path = os.path.join("data", region, "old_debroussaillement.gpkg")
@@ -117,7 +136,9 @@ def _zone_gdf(region, name, dept):
 
     if name == "dept":
         if not dept:
-            raise SystemExit("❌ zone « dept » requires --dept")
+            raise SystemExit(
+                f"❌ zone « dept » needs a département: set \"dept\" in "
+                f"data/{region}/scenarios.json, or pass --dept")
         return _dept_gdf(region, dept)
 
     path = os.path.join("data", region, "zones", f"{name}.gpkg")
@@ -139,6 +160,7 @@ def load_zone(region, name, reference_path, dept=None):
     if crs is None or crs.to_epsg() is None:
         crs = rasterio.crs.CRS.from_epsg(2154)
 
+    dept = region_dept(region, dept)
     gdf = _zone_gdf(region, name, dept).to_crs(crs)
     if gdf.empty:
         raise SystemExit(f"❌ zone « {name} » is empty for département {dept}")

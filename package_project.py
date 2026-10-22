@@ -4,7 +4,7 @@ Reads the .qgz, extracts every layer path it references, and copies exactly
 those files — no guesswork about what the project needs. The layer paths in
 the project are already relative, so the archive opens as-is once unzipped.
 
-The DEM is the one heavy file (556 MB) and only serves as a hillshade
+The DEM is the one heavy file (often several hundred MB) and only serves as a hillshade
 backdrop, so `--light-dem` ships a coarsened copy instead.
 
 Usage:
@@ -71,7 +71,7 @@ def main():
                         help='ship the DEM coarsened to M metres (e.g. 50) '
                              'instead of the full-resolution file')
     parser.add_argument('--skip-viewsheds', action='store_true',
-                        help='leave the 57 individual viewsheds out')
+                        help='leave the individual viewsheds out')
     parser.add_argument('--out', default=None, help='output zip path')
     args = parser.parse_args()
 

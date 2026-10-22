@@ -25,7 +25,7 @@ scoring nearly the same.
 
 Output is `candidats_anfr.csv`, in the sites.csv format, ready to append.
 
-    uv run python find_anfr_candidates.py --region example --dept 77
+    uv run python find_anfr_candidates.py --region example   # dept from scenarios.json
 """
 
 import argparse
@@ -47,7 +47,7 @@ import rasterio  # noqa: E402
 from pyproj import Transformer  # noqa: E402
 
 from config import REGION, VIEWSHED_RADIUS_M  # noqa: E402
-from analysis_shape.zones import load_zone  # noqa: E402
+from analysis_shape.zones import load_zone, region_dept  # noqa: E402
 
 REPO = Path(__file__).resolve().parent
 
@@ -221,7 +221,9 @@ def main():
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--region", default=REGION)
-    parser.add_argument("--dept", required=True, help="département code, e.g. 77")
+    parser.add_argument("--dept", default=None,
+                        help="département code, e.g. 77 (default: \"dept\" in "
+                             "data/<region>/scenarios.json)")
     parser.add_argument("--anfr", type=Path,
                         default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson")
     parser.add_argument("--refs", type=Path,
@@ -242,6 +244,12 @@ def main():
                              "filled with public ones. Recurring access cost is a "
                              "structuring criterion, not a detail")
     args = parser.parse_args()
+
+    # The ANFR register is filtered by département: no default makes sense.
+    args.dept = region_dept(args.region, args.dept)
+    if not args.dept:
+        raise SystemExit(f"❌ no département: set \"dept\" in "
+                         f"data/{args.region}/scenarios.json, or pass --dept")
 
     if not args.anfr.exists():
         raise SystemExit(f"❌ ANFR export not found: {args.anfr}")

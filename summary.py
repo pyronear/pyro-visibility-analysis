@@ -108,7 +108,8 @@ def main():
     parser.add_argument("--zones", default=None,
                         help="comma-separated zones of interest, e.g. dept,old")
     parser.add_argument("--dept", default=None,
-                        help="département code for the « dept » zone")
+                        help="département code for the « dept » zone "
+                             "(default: \"dept\" in data/<region>/scenarios.json)")
     parser.add_argument("--radius-km", type=float, default=None,
                         help="override the radius read from output/run.json")
     args = parser.parse_args()
