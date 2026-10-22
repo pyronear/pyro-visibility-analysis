@@ -59,7 +59,7 @@ def main():
 
     config_path = os.path.join("data", args.region, "scenarios.json")
     if not os.path.exists(config_path):
-        raise SystemExit(f"❌ {config_path} introuvable")
+        raise SystemExit(f"❌ {config_path} not found")
     with open(config_path, encoding="utf-8") as handle:
         config = json.load(handle)
 
@@ -74,8 +74,8 @@ def main():
         with open(meta_path, encoding="utf-8") as handle:
             metas.append(json.load(handle))
     if not metas:
-        raise SystemExit(f"❌ aucun scénario sous {OUT} — lancer "
-                         f"scenario_layers.py --all d'abord")
+        raise SystemExit(f"❌ no scenario under {OUT} — run "
+                         f"scenario_layers.py --all first")
 
     # The zone's label and area come from the scenarios themselves: they
     # describe what was computed, not what the config says today.
@@ -139,7 +139,7 @@ def main():
     out_path = os.path.join("docs", f"scenarios-{args.region}.md")
     with open(out_path, "w", encoding="utf-8") as handle:
         handle.write("\n".join(lines) + "\n")
-    print(f"✅ {out_path} — {len(metas)} scénarios")
+    print(f"✅ {out_path} — {len(metas)} scenarios")
 
 
 if __name__ == "__main__":

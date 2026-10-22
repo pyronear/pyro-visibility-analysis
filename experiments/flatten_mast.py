@@ -90,21 +90,21 @@ def flatten(dem_path, sites, radius_m, seuil_m, dry_run):
             ring = (distance >= radius_m) & (distance < radius_m + RING_WIDTH_M)
             ring &= block > NODATA_FLOOR
             if not ring.any():
-                print(f"   ⚠️  {name}: pas de référence autour du point, ignoré")
+                print(f"   ⚠️  {name}: no reference around the point, skipped")
                 continue
             reference = float(np.median(block[ring]))
 
             core = (distance < radius_m) & (block > NODATA_FLOOR)
             hit = core & (block > reference + seuil_m)
             if not hit.any():
-                print(f"   ✓  {name}: rien à raboter (surface ≤ "
-                      f"{reference + seuil_m:.1f} m dans les {radius_m:.0f} m)")
+                print(f"   ✓  {name}: nothing to flatten (surface ≤ "
+                      f"{reference + seuil_m:.1f} m within {radius_m:.0f} m)")
                 continue
 
             before = float(block[hit].max())
-            print(f"   ▸  {name}: {int(hit.sum())} cellule(s) ramenée(s) de "
-                  f"{before:.1f} m à {reference:.1f} m "
-                  f"(soit −{before - reference:.1f} m)")
+            print(f"   ▸  {name}: {int(hit.sum())} cell(s) brought down from "
+                  f"{before:.1f} m to {reference:.1f} m "
+                  f"(i.e. −{before - reference:.1f} m)")
             journal.append({"site": name, "cellules": int(hit.sum()),
                             "avant_max_m": round(before, 1),
                             "reference_m": round(reference, 1),
@@ -122,43 +122,43 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--region", default=REGION)
     parser.add_argument("--dem", default=None,
-                        help="défaut : data/<region>/dem_l93.tif")
+                        help="default: data/<region>/dem_l93.tif")
     parser.add_argument("--radius", type=float, default=20.0,
-                        help="rayon traité autour du site, en mètres (défaut 20)")
+                        help="radius processed around each site, in metres (default 20)")
     parser.add_argument("--seuil", type=float, default=5.0,
-                        help="dépassement toléré au-dessus de la surface "
-                             "environnante, en mètres (défaut 5)")
+                        help="tolerated excess above the surrounding "
+                             "surface, in metres (default 5)")
     parser.add_argument("--dry-run", action="store_true",
-                        help="montre ce qui serait modifié sans écrire")
+                        help="show what would change without writing")
     args = parser.parse_args()
 
     dem_path = args.dem or os.path.join("data", args.region, "dem_l93.tif")
     csv_path = os.path.join("data", args.region, "sites.csv")
     for path in (dem_path, csv_path):
         if not os.path.exists(path):
-            raise SystemExit(f"❌ {path} introuvable")
+            raise SystemExit(f"❌ {path} not found")
 
     sites = pd.read_csv(csv_path, delimiter=";")
-    print(f"Région   : {args.region}")
+    print(f"Region   : {args.region}")
     print(f"DEM      : {dem_path}")
     print(f"Sites    : {len(sites)}")
-    print(f"Réglages : rayon {args.radius:.0f} m, seuil +{args.seuil:.0f} m"
+    print(f"Settings : radius {args.radius:.0f} m, threshold +{args.seuil:.0f} m"
           f"{' — DRY RUN' if args.dry_run else ''}\n")
 
     journal = flatten(dem_path, sites, args.radius, args.seuil, args.dry_run)
 
     if args.dry_run:
-        print("\nDry run : rien n'a été écrit.")
+        print("\nDry run: nothing was written.")
         return
     if not journal:
-        print("\nAucune modification.")
+        print("\nNo change.")
         return
 
     log_path = os.path.join("data", args.region, "mast_flatten.json")
     with open(log_path, "w", encoding="utf-8") as handle:
         json.dump(journal, handle, ensure_ascii=False, indent=2)
-    print(f"\n✅ DEM modifié en place. Journal : {log_path}")
-    print("   Purger les viewsheds avant de relancer main.py :")
+    print(f"\n✅ DEM edited in place. Log: {log_path}")
+    print("   Purge the viewsheds before rerunning main.py:")
     print(f"     rm -rf data/{args.region}/output/viewsheds_geotiff "
           f"data/{args.region}/output/normalized "
           f"data/{args.region}/output/fusion "

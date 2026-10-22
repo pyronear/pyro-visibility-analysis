@@ -76,7 +76,7 @@ def main():
     args = parser.parse_args()
 
     if not os.path.exists(args.project):
-        raise SystemExit(f'❌ {args.project} introuvable')
+        raise SystemExit(f'❌ {args.project} not found')
 
     files = referenced_files(args.project)
     stem = os.path.splitext(os.path.basename(args.project))[0]
@@ -96,7 +96,7 @@ def main():
         os.makedirs(os.path.dirname(destination), exist_ok=True)
 
         if args.light_dem and os.path.basename(path).startswith('dem_l93'):
-            print(f'   allègement du DEM → {args.light_dem:g} m …')
+            print(f'   coarsening the DEM → {args.light_dem:g} m …')
             coarsen(path, destination, args.light_dem)
         else:
             shutil.copy2(path, destination)
@@ -131,10 +131,10 @@ def main():
                 zf.write(full, os.path.relpath(full, staging))
     shutil.rmtree(staging)
 
-    print(f'\n✅ {archive} — {os.path.getsize(archive) / 1e6:.0f} Mo')
-    print(f'   {len(files) - skipped} couches empaquetées'
-          + (f', {skipped} viewsheds ignorés' if skipped else ''))
-    print('   Le destinataire dézippe et ouvre le .qgz : les chemins sont relatifs.')
+    print(f'\n✅ {archive} — {os.path.getsize(archive) / 1e6:.0f} MB')
+    print(f'   {len(files) - skipped} layers packaged'
+          + (f', {skipped} viewsheds skipped' if skipped else ''))
+    print('   The recipient unzips and opens the .qgz: paths are relative.')
 
 
 if __name__ == '__main__':

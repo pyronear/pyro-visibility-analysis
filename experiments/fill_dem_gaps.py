@@ -107,8 +107,8 @@ def main():
     previous = os.path.exists(provenance_path)
 
     print(f"▶ {dem_path}  ({width} x {height} px at {res_x:.0f} m)")
-    print(f"  bouchage depuis {args.layer} (code {code})"
-          f"{' — provenance existante conservée' if previous else ''}\n")
+    print(f"  filling from {args.layer} (code {code})"
+          f"{' — existing provenance kept' if previous else ''}\n")
 
     n_cols = int(np.ceil(width / CHUNK_PX))
     n_rows = int(np.ceil(height / CHUNK_PX))
@@ -138,7 +138,7 @@ def main():
 
                 if not missing.any():
                     prov.write(source, 1, window=window)
-                    print(f"   [{done}/{total}] complet")
+                    print(f"   [{done}/{total}] complete")
                     continue
 
                 holes += int(missing.sum())
@@ -149,8 +149,8 @@ def main():
 
                 if patch is None:
                     prov.write(source, 1, window=window)
-                    print(f"   [{done}/{total}] {missing.sum():>7} trous — "
-                          f"échec du remplissage")
+                    print(f"   [{done}/{total}] {missing.sum():>7} holes — "
+                          f"filling failed")
                     continue
 
                 usable = missing & (patch > NODATA_FLOOR)
@@ -160,20 +160,20 @@ def main():
 
                 dst.write(band, 1, window=window)
                 prov.write(source, 1, window=window)
-                print(f"   [{done}/{total}] {missing.sum():>7} trous, "
-                      f"{usable.sum():>7} bouchés")
+                print(f"   [{done}/{total}] {missing.sum():>7} holes, "
+                      f"{usable.sum():>7} filled")
 
     pixels = width * height
     print(f"\n✅ {dem_path}")
-    print(f"   trous initiaux : {holes:,} px ({100 * holes / pixels:.2f} %)")
-    print(f"   bouchés        : {filled:,} px ({100 * filled / pixels:.2f} %)")
+    print(f"   initial holes  : {holes:,} px ({100 * holes / pixels:.2f} %)")
+    print(f"   filled         : {filled:,} px ({100 * filled / pixels:.2f} %)")
     residual = holes - filled
-    print(f"   restants       : {residual:,} px ({100 * residual / pixels:.2f} %)")
-    print(f"✅ {provenance_path}  — 1 = Lidar HD, 2 = corrélation, "
-          f"3 = RGE ALTI, 0 = manquant")
+    print(f"   remaining      : {residual:,} px ({100 * residual / pixels:.2f} %)")
+    print(f"✅ {provenance_path}  — 1 = Lidar HD, 2 = correlation, "
+          f"3 = RGE ALTI, 0 = missing")
     if residual:
-        print("\n   ⚠️  Des trous subsistent : les viewsheds les traiteront comme "
-              "des creux.")
+        print("\n   ⚠️  Holes remain: the viewsheds will treat them as "
+              "pits.")
 
 
 if __name__ == "__main__":

@@ -120,7 +120,7 @@ def main():
                          f"({', '.join(names)})")
     for zone in zones:
         print(f"Zone « {zone.name} » : {zone.reference_km2:,.0f} km²")
-    print(f"Objectif de la sélection : « {objectif.name} »\n")
+    print(f"Selection objective: « {objectif.name} »\n")
 
     # Baseline: what the deployed cameras already see.
     baseline = None
@@ -133,12 +133,12 @@ def main():
         baseline = np.zeros_like(objectif.mask)
     blind = ~baseline
 
-    print(f"Déjà en place ({len(deployed)} caméras) : "
-          f"{baseline.sum() * cell_km2:,.0f} km² au total")
+    print(f"Already in place ({len(deployed)} cameras): "
+          f"{baseline.sum() * cell_km2:,.0f} km² in total")
     for zone in zones:
         seen = zone.covered_km2(baseline)
-        print(f"   dont « {zone.name} » : {seen:,.0f} km² "
-              f"({100 * seen / zone.reference_km2:.1f} % de la zone)")
+        print(f"   of which « {zone.name} »: {seen:,.0f} km² "
+              f"({100 * seen / zone.reference_km2:.1f} % of the zone)")
     print()
 
     owners = dict(zip(sites["Name"], sites["Owner"]))
@@ -164,8 +164,8 @@ def main():
     obj_new = f"new_km2_{objectif.name}"
     candidates = table[~table["deployed"]].sort_values(obj_new, ascending=False)
     width = max(len(s) for s in table["site"])
-    print(f"Candidats, classés par « {objectif.name} » NOUVEAU apporté "
-          f"(hors de ce que voient les caméras en place)\n")
+    print(f"Candidates, ranked by NEW « {objectif.name} » added "
+          f"(outside what the installed cameras see)\n")
     header = f"{'site':<{width}} {'gestion':>10} {'total':>7}"
     for zone in zones:
         header += f" {zone.name[:7]:>7} {'%':>6}"
@@ -202,25 +202,25 @@ def main():
             total = objectif.covered_km2(covered)
             results.append((best, best_gain, total))
             print(f"  {step}. {best:<{width}} +{best_gain:>6.0f} km² "
-                  f"→ cumul {total:>6.0f} km² "
-                  f"({100 * total / objectif_km2:.1f} % de « {objectif.name} »)")
+                  f"→ total {total:>6.0f} km² "
+                  f"({100 * total / objectif_km2:.1f} % of « {objectif.name} »)")
         return results
 
     all_pool = {r.site: paths[r.site] for r in candidates.itertuples()}
     public_pool = {r.site: paths[r.site] for r in candidates.itertuples()
                    if r.categorie == "public"}
 
-    open_run = greedy(all_pool, f"Scénario A — tous les sites ({args.picks} choix)")
+    open_run = greedy(all_pool, f"Scenario A — all sites ({args.picks} picks)")
     public_run = greedy(public_pool,
-                        f"Scénario B — sites publics uniquement ({args.picks} choix)")
+                        f"Scenario B — public sites only ({args.picks} picks)")
 
     if open_run and public_run:
-        print("\nCe que les sites opérateurs achètent\n")
+        print("\nWhat the operator sites buy\n")
         for step in range(min(len(open_run), len(public_run))):
             a, b = open_run[step][2], public_run[step][2]
-            print(f"  a {step + 1} site(s) : tous {a:>6.0f} km² "
-                  f"({100 * a / objectif_km2:4.1f} %)  |  publics {b:>6.0f} km² "
-                  f"({100 * b / objectif_km2:4.1f} %)  |  ecart {a - b:>+5.0f} km²")
+            print(f"  at {step + 1} site(s): all {a:>6.0f} km² "
+                  f"({100 * a / objectif_km2:4.1f} %)  |  public {b:>6.0f} km² "
+                  f"({100 * b / objectif_km2:4.1f} %)  |  gap {a - b:>+5.0f} km²")
 
     out = os.path.join("data", args.region, "output", "priorisation.csv")
     table.sort_values(obj_new, ascending=False).round(1).to_csv(

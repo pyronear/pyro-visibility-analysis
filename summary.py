@@ -58,7 +58,7 @@ def detection_radius(output_dir):
     if os.path.exists(path):
         with open(path, encoding="utf-8") as handle:
             return int(json.load(handle)["viewshed_radius_m"]), "run.json"
-    return VIEWSHED_RADIUS_M, f"config.py — {path} absent, à vérifier"
+    return VIEWSHED_RADIUS_M, f"config.py — {path} missing, to check"
 
 
 def read_mask(path):
@@ -170,7 +170,7 @@ def main():
     points.to_file(points_path, driver="GPKG", layer="sites")
 
     print(f"\nCoverage — {region}   ({radius_m / 1000:.0f} km disc "
-          f"= {disc_km2:.0f} km², d'après {radius_source})\n")
+          f"= {disc_km2:.0f} km², from {radius_source})\n")
     width = max(len(s) for s in summary["site"])
     for _, row in summary.iterrows():
         line = (f"  {row['site']:<{width}}  {row['area_km2']:>7.1f} km²  "
@@ -193,7 +193,7 @@ def main():
             seen = zone.covered_km2(union_mask)
             print(f"  {'UNION inside « ' + zone.name + ' »':<{width}}  "
                   f"{seen:>7.1f} km²  "
-                  f"{100 * seen / zone.reference_km2:>5.1f}% de la zone "
+                  f"{100 * seen / zone.reference_km2:>5.1f}% of the zone "
                   f"({zone.reference_km2:,.0f} km²)")
 
     print(f"\n✅ {summary_path}")

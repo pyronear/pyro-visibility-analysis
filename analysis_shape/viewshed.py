@@ -73,14 +73,14 @@ def _write_run_metadata(output, radius_m, target_height_m):
             detail = "\n".join(
                 f"     {key} : {was} → {now}" for key, was, now in differences)
             raise RuntimeError(
-                f"Les {len(existing)} viewsheds de ce dossier ont été "
-                f"calculés avec d'autres paramètres :\n{detail}\n"
-                f"   Ils seraient réutilisés tels quels et le nouveau "
-                f"réglage ignoré.\n"
-                f"   Deux options :\n"
-                f"     · comparer deux réglages → créer data/<region>-<variante>/ "
-                f"avec le même sites.csv et un lien vers le DEM\n"
-                f"     · remplacer → supprimer {output}/ et "
+                f"The {len(existing)} viewsheds in this folder were "
+                f"computed with other settings:\n{detail}\n"
+                f"   They would be reused as they are and the new setting "
+                f"ignored.\n"
+                f"   Two options:\n"
+                f"     · compare two settings → create data/<region>-<variant>/ "
+                f"with the same sites.csv and a link to the DEM\n"
+                f"     · replace → delete {output}/ and "
                 f"{os.path.dirname(output)}/normalized/")
 
     try:

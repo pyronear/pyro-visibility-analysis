@@ -45,11 +45,11 @@ def main():
     out_path = os.path.join(output_dir, "output.csv")
 
     if not os.path.exists(fusion_file):
-        raise SystemExit(f"❌ {fusion_file} introuvable — la fusion n'a pas été écrite")
+        raise SystemExit(f"❌ {fusion_file} not found — the fusion was not written")
 
     rows = []
     files = sorted(f for f in os.listdir(norm_dir) if f.endswith(".tif"))
-    print(f"{len(files)} viewsheds normalisés trouvés")
+    print(f"{len(files)} normalized viewsheds found")
     for i, fname in enumerate(files, 1):
         path = os.path.join(norm_dir, fname)
         name = fname.replace("norm_viewshed_", "").rsplit(".", 1)[0]
@@ -59,7 +59,7 @@ def main():
         print(f"  [{i}/{len(files)}] {name} — {surface/1e6:.1f} km²")
 
     pd.DataFrame(rows).to_csv(out_path, sep=";", index=False)
-    print(f"\n✅ {out_path} écrit ({len(rows)} sites, sans la matrice par paires)")
+    print(f"\n✅ {out_path} written ({len(rows)} sites, without the pairwise matrix)")
 
 
 if __name__ == "__main__":

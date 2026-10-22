@@ -86,21 +86,21 @@ def sample(layer, x, y, half_size=50.0, resolution=5.0):
 def classify(height, ground, structure):
     """Return (verdict, is_problem)."""
     if height is None or math.isnan(height):
-        hint = (f", lidar mesure {structure:.0f} m"
+        hint = (f", lidar measures {structure:.0f} m"
                 if structure is not None and structure >= CAPTURED_THRESHOLD_M
                 else "")
-        return f"HAUTEUR MANQUANTE{hint}", True
+        return f"MISSING HEIGHT{hint}", True
     if height > IMPLAUSIBLE_HEIGHT_M:
-        return f"IMPLAUSIBLE ({height:.0f} m au-dessus du sol)", True
+        return f"IMPLAUSIBLE ({height:.0f} m above ground)", True
     if abs(height - ground) < ALTITUDE_MARGIN_M:
-        return f"SUSPECT — proche de l'altitude sol ({ground:.0f} m)", True
+        return f"SUSPECT — close to the ground altitude ({ground:.0f} m)", True
     # Agreement first: a 9 m vigie measured at 9 m is confirmed, not « missed ».
     if structure is not None and abs(height - structure) < AGREEMENT_MARGIN_M:
-        return "ok — confirme par le lidar", False
+        return "ok — confirmed by the lidar", False
     if structure is None or structure < CAPTURED_THRESHOLD_M:
-        return "ok — structure non captee par le lidar (pylone treillis ?)", False
-    return (f"a verifier — lidar mesure {structure:.0f} m pour {height:.0f} m "
-            f"declares"), False
+        return "ok — structure not captured by the lidar (lattice pylon?)", False
+    return (f"to check — lidar measures {structure:.0f} m for {height:.0f} m "
+            f"declared"), False
 
 
 def main():
@@ -145,7 +145,7 @@ def main():
         print(f"{name:<{width}} {h:>6} {g:>7} {s:>7}  {verdict}")
 
     problems = [r for r in rows if r[5]]
-    print(f"\n{len(problems)} point(s) d'attention sur {len(rows)} sites")
+    print(f"\n{len(problems)} point(s) to check out of {len(rows)} sites")
     for name, *_, verdict, _ in problems:
         print(f"  - {name} : {verdict}")
 

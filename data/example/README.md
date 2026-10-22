@@ -25,7 +25,7 @@ Optional, only when building `sites.csv` from a partner spreadsheet with
 - `commune_alias.json` — `{"OLD NAME": "MERGED NAME"}`. Partner lists often keep
   the name a commune had before a merger (commune nouvelle), or a short form,
   while the geo API only knows the current name. Unmatched rows show up as
-  « commune introuvable » in `resolution.csv`; add them here and rerun.
+  « commune not found » in `resolution.csv`; add them here and rerun.
 - `sites_installes.json` — cameras already installed, whose position overrides
   the automatic resolution.
 

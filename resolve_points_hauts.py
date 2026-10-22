@@ -115,7 +115,7 @@ def get_json(url: str, params: dict | None = None, retries: int = 3):
         except Exception as exc:  # noqa: BLE001
             if attempt == retries - 1:
                 raise
-            print(f"  ! {type(exc).__name__} — nouvel essai", file=sys.stderr)
+            print(f"  ! {type(exc).__name__} — retrying", file=sys.stderr)
             time.sleep(2 * (attempt + 1))
 
 
@@ -144,7 +144,7 @@ def read_xlsx(path: Path) -> list[dict]:
             header_row, cols = r, found
             break
     if header_row is None:
-        raise SystemExit(f"{path.name} : aucune ligne d'en-tête (colonne « où ») trouvée")
+        raise SystemExit(f"{path.name}: no header row (column « où ») found")
 
     def fill(cell) -> str:
         f = cell.fill
@@ -230,7 +230,7 @@ def load_bdtopo(communes: list) -> dict:
         try:
             feats = wfs_features(typename, bbox)
         except Exception as exc:  # noqa: BLE001
-            print(f"  ! BD TOPO {key} indisponible ({exc}) — on continue sans", file=sys.stderr)
+            print(f"  ! BD TOPO {key} unavailable ({exc}) — carrying on without it", file=sys.stderr)
             feats = []
         items = []
         for f in feats:
@@ -248,7 +248,7 @@ def load_bdtopo(communes: list) -> dict:
                 "etat": props.get("etat_de_l_objet"),
             })
         result[key] = items
-        print(f"  BD TOPO {key:10s} : {len(items)} objets")
+        print(f"  BD TOPO {key:10s} : {len(items)} objects")
     return result
 
 
@@ -286,7 +286,7 @@ def load_anfr(path: Path, dept: str) -> list[dict]:
                 "insee": str(p.get("COM_CD_INSEE")), "adresse": adr,
                 "sup_id": p.get("SUP_ID"),
             })
-    print(f"  ANFR dept {dept}   : {len(out)} supports distincts")
+    print(f"  ANFR dept {dept}   : {len(out)} distinct supports")
     return out
 
 
@@ -449,7 +449,7 @@ def resolve_row(row, communes_index, bdtopo, anfr, preference="ouvrage"):
     out = dict(row)
     commune = resolve_commune(row["commune"], communes_index)
     if commune is None:
-        out["statut"] = "commune introuvable"
+        out["statut"] = "commune not found"
         return out
 
     out["commune_officielle"] = commune["nom"]
@@ -514,7 +514,7 @@ def resolve_row(row, communes_index, bdtopo, anfr, preference="ouvrage"):
             break
 
     if not cands:
-        out["statut"] = f"aucun ouvrage BD TOPO ({kind}) à moins de {RAYON_RECHERCHE_M // 1000} km"
+        out["statut"] = f"no BD TOPO structure ({kind}) within {RAYON_RECHERCHE_M // 1000} km"
     else:
         best = cands[0]
         h, h_src = hauteur_of(best)
@@ -551,7 +551,7 @@ def resolve_row(row, communes_index, bdtopo, anfr, preference="ouvrage"):
                 latitude=round(s["lat"], 6), longitude=round(s["lon"], 6),
                 hauteur_anfr=s["hauteur"], anfr_sup_id=s["sup_id"],
                 dist_geocodage_m=round(dist(gx, gy, s)), nb_candidats=len(fallback),
-                vivier="ANFR seul", statut="ok (ANFR seul)",
+                vivier="ANFR seul", statut="ok (ANFR only)",
             )
 
     if out.get("latitude") is not None:
@@ -570,17 +570,17 @@ def alertes_de(out: dict, row: dict | None = None) -> str:
     alertes = []
     if out.get("statut", "").startswith("ok"):
         if out.get("hauteur_retenue") is None:
-            alertes.append("hauteur inconnue")
+            alertes.append("unknown height")
         if out.get("choisi_par") != "adresse ANFR" and (out.get("dist_geocodage_m") or 0) > 800:
-            alertes.append(f"ouvrage à {out['dist_geocodage_m']} m du géocodage")
+            alertes.append(f"structure {out['dist_geocodage_m']} m from the geocoded point")
         e2 = out.get("ecart_2e_candidat_m")
         if (out.get("choisi_par") != "adresse ANFR" and e2 is not None
                 and e2 - (out.get("dist_geocodage_m") or 0) < ECART_AMBIGU_M):
-            alertes.append("2e candidat aussi proche")
+            alertes.append("2nd candidate just as close")
         if not row.get("adresse") and out.get("choisi_par") != "adresse ANFR":
-            alertes.append("pas d'adresse dans le tableau")
+            alertes.append("no address in the spreadsheet")
         if out.get("vivier", "").startswith("réservoir au sol"):
-            alertes.append("réservoir au sol, pas une tour")
+            alertes.append("ground-level reservoir, not a tower")
         hr = out.get("hauteur_retenue")
         autres = {"ANFR": out.get("hauteur_anfr"),
                   "BD TOPO": out.get("hauteur_bdtopo"),
@@ -589,9 +589,9 @@ def alertes_de(out: dict, row: dict | None = None) -> str:
         ecarts = [f"{k} {float(v):.0f} m" for k, v in autres.items()
                   if v and hr and abs(float(v) - hr) > 8]
         if ecarts:
-            alertes.append(f"{hr} m retenus mais {', '.join(ecarts)}")
+            alertes.append(f"{hr} m kept but {', '.join(ecarts)}")
         if out.get("hauteur_lidar") is None and hr:
-            alertes.append("hauteur non confirmée au lidar")
+            alertes.append("height not confirmed by the lidar")
     return " ; ".join(alertes)
 
 
@@ -624,7 +624,7 @@ def appliquer_installes(resolved: list[dict], path: Path) -> int:
         # distance to the operations coordinates.
         candidats = [r for r in resolved if norm(r["commune"]) in cle]
         if not candidats:
-            print(f"  ! « {site['name']} » ne correspond à aucune ligne du tableau",
+            print(f"  ! « {site['name']} » matches no row of the spreadsheet",
                   file=sys.stderr)
             continue
         if len(candidats) > 1:
@@ -650,7 +650,7 @@ def appliquer_installes(resolved: list[dict], path: Path) -> int:
             for k in ("hauteur_bdtopo", "hauteur_anfr", "hauteur_source",
                       "nature_bdtopo", "cleabs", "anfr_sup_id", "z_sol"):
                 r.pop(k, None)
-            r["statut"] = "position d'exploitation, ouvrage non identifié"
+            r["statut"] = "operations position, structure not identified"
         # The lidar is re-measured at the real position in every case.
         hx, hy = to_l93(site["lon"], site["lat"])
         r["hauteur_lidar"] = hauteur_lidar(hx, hy)
@@ -705,17 +705,17 @@ def main() -> None:
 
     print(f"▶ {args.xlsx.name}")
     rows = read_xlsx(args.xlsx)
-    print(f"  {len(rows)} lignes de points hauts")
+    print(f"  {len(rows)} high-point rows")
 
-    print("▶ référentiels")
+    print("▶ reference datasets")
     communes_index, communes = load_communes(args.dept)
     bdtopo = load_bdtopo(communes)
     anfr = load_anfr(args.anfr, args.dept) if args.anfr.exists() else []
     if not anfr:
-        print(f"  ! export ANFR absent ({args.anfr}) — pas de recoupement de hauteur",
+        print(f"  ! ANFR export missing ({args.anfr}) — no height cross-check",
               file=sys.stderr)
 
-    print("▶ résolution")
+    print("▶ resolution")
     resolved = [resolve_row(row, communes_index, bdtopo, anfr, args.hauteur)
                 for row in rows]
 
@@ -730,7 +730,7 @@ def main() -> None:
             r["alertes"] = alertes_de(r)
             if r.get("hauteur_retenue") is None:
                 r["alertes"] = "; ".join(filter(None, [
-                    "hauteur inconnue, à demander au SDIS", r["alertes"]]))
+                    "unknown height, ask the partner", r["alertes"]]))
     # Printed only now: installed sites had their position, and sometimes their
     # height, replaced above, and showing the intermediate value would mislead.
     for r in resolved:
@@ -740,8 +740,8 @@ def main() -> None:
               f"{r['statut'][:30]:30s} h={str(h) + ' m' if h else '?':8s} "
               f"{r['alertes']}")
     if n_installes:
-        print(f"\n  ≡ {n_installes} site(s) repositionné(s) d'après "
-              f"{installes.name} et marqué(s) EN PLACE")
+        print(f"\n  ≡ {n_installes} site(s) repositioned from "
+              f"{installes.name} and marked EN PLACE")
 
     review = outdir / "resolution.csv"
     with review.open("w", newline="", encoding="utf-8") as fh:
@@ -774,12 +774,12 @@ def main() -> None:
             n += 1
 
     flagged = sum(1 for r in resolved if r.get("alertes"))
-    print(f"\n✓ {review.relative_to(REPO)}  ({len(resolved)} lignes, "
-          f"dont {flagged} à vérifier — colonne « alertes »)")
-    print(f"✓ {sites.relative_to(REPO)}  ({n} sites, étapes : {', '.join(sorted(keep))})")
-    print(f"\n  Hauteurs : préférence « {args.hauteur} ». C'est la hauteur de")
-    print("  l'OUVRAGE, pas celle de la caméra. Contrôler avec audit_sites.py")
-    print("  et ajuster avant de lancer les viewsheds.")
+    print(f"\n✓ {review.relative_to(REPO)}  ({len(resolved)} rows, "
+          f"{flagged} to check — column « alertes »)")
+    print(f"✓ {sites.relative_to(REPO)}  ({n} sites, stages: {', '.join(sorted(keep))})")
+    print(f"\n  Heights: preference « {args.hauteur} ». This is the height of the")
+    print("  STRUCTURE, not of the camera. Check with audit_sites.py and adjust")
+    print("  before running the viewsheds.")
 
 
 if __name__ == "__main__":

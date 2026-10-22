@@ -42,7 +42,7 @@ def load_config():
     path = os.path.join(ROOT, "config.py")
     spec = importlib.util.spec_from_file_location("config", path)
     if spec is None or spec.loader is None:
-        raise RuntimeError(f"config.py introuvable à {path}")
+        raise RuntimeError(f"config.py not found at {path}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 

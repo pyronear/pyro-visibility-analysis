@@ -160,7 +160,7 @@ def existing_sites(region):
 def blind_mask(region, zone, baseline_path):
     """Zone cells not yet seen by the existing deployment."""
     if not os.path.exists(baseline_path):
-        print(f"   ℹ️  {baseline_path} absent — score calculé sur toute la zone")
+        print(f"   ℹ️  {baseline_path} missing — score computed over the whole zone")
         return zone.mask.copy()
     with rasterio.open(baseline_path) as src:
         band = src.read(1)
@@ -221,42 +221,42 @@ def main():
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--region", default=REGION)
-    parser.add_argument("--dept", required=True, help="code département, ex. 91")
+    parser.add_argument("--dept", required=True, help="département code, e.g. 77")
     parser.add_argument("--anfr", type=Path,
                         default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson")
     parser.add_argument("--refs", type=Path,
                         default=Path.home() / "Downloads"
                         / "20250131-export-etalab-ref-1-")
     parser.add_argument("--zone", default="dept",
-                        help="zone d'enjeu servant au score (défaut : dept)")
+                        help="zone of interest used for the score (default: dept)")
     parser.add_argument("--hauteur-min", type=float, default=30.0)
     parser.add_argument("--ecart", type=float, default=3000.0,
-                        help="distance minimale entre deux candidats retenus (m)")
+                        help="minimum distance between two kept candidates (m)")
     parser.add_argument("--proche-existant", type=float, default=500.0,
-                        help="en deçà, le support est considéré déjà dans la liste")
+                        help="below this distance, a support counts as already listed")
     parser.add_argument("--top", type=int, default=25,
-                        help="nombre de candidats écrits dans le CSV")
+                        help="number of candidates written to the CSV")
     parser.add_argument("--publics-seulement", action="store_true")
     parser.add_argument("--max-operateurs", type=int, default=None,
-                        help="plafonne les supports d'opérateur dans la liste ; "
-                             "le reste est complété en public. Le coût d'accès "
-                             "récurrent est un critère structurant, pas un détail")
+                        help="caps operator supports in the list; the rest is "
+                             "filled with public ones. Recurring access cost is a "
+                             "structuring criterion, not a detail")
     args = parser.parse_args()
 
     if not args.anfr.exists():
-        raise SystemExit(f"❌ export ANFR introuvable : {args.anfr}")
+        raise SystemExit(f"❌ ANFR export not found: {args.anfr}")
 
     natures = load_reference_table(args.refs / "SUP_NATURE.txt")
     proprios = load_reference_table(args.refs / "SUP_PROPRIETAIRE.txt")
 
     print(f"▶ ANFR, département {args.dept}")
     supports = load_supports(args.anfr, args.dept)
-    print(f"  {len(supports)} supports distincts")
+    print(f"  {len(supports)} distinct supports")
 
     kept = [s for s in supports if s["nat_id"] in NATURES_UTILES]
-    print(f"  {len(kept)} d'une nature exploitable")
+    print(f"  {len(kept)} of a usable kind")
     kept = [s for s in kept if (s["hauteur"] or 0) >= args.hauteur_min]
-    print(f"  {len(kept)} d'au moins {args.hauteur_min:.0f} m")
+    print(f"  {len(kept)} at least {args.hauteur_min:.0f} m tall")
 
     for support in kept:
         support["public"] = support["tpo_id"] in PROPRIETAIRES_PUBLICS
@@ -264,18 +264,18 @@ def main():
         support["nature"] = natures.get(support["nat_id"], "?")
     if args.publics_seulement:
         kept = [s for s in kept if s["public"]]
-        print(f"  {len(kept)} à propriétaire public")
+        print(f"  {len(kept)} with a public owner")
 
     already = existing_sites(args.region)
     kept = [s for s in kept
             if all(math.hypot(s["x"] - e["x"], s["y"] - e["y"])
                    >= args.proche_existant for e in already)]
-    print(f"  {len(kept)} hors des {len(already)} sites déjà listés")
+    print(f"  {len(kept)} away from the {len(already)} sites already listed")
 
     viewsheds = sorted((REPO / "data" / args.region / "output"
                         / "viewsheds_geotiff").glob("*.tif"))
     if not viewsheds:
-        raise SystemExit("❌ aucun viewshed — lancer main.py d'abord")
+        raise SystemExit("❌ no viewshed — run main.py first")
     reference = str(viewsheds[0])
     zone = load_zone(args.region, args.zone, reference, args.dept)
     with rasterio.open(reference) as src:
@@ -285,8 +285,8 @@ def main():
     fusion = (REPO / "data" / args.region / "output" / "fusion"
               / "fusion_or_all_sites.tif")
     blind = blind_mask(args.region, zone, str(fusion))
-    print(f"\n  zone « {zone.name} » : {zone.reference_km2:,.0f} km², "
-          f"dont {blind.sum() * cell_km2:,.0f} km² non couverts aujourd'hui")
+    print(f"\n  zone « {zone.name} »: {zone.reference_km2:,.0f} km², "
+          f"of which {blind.sum() * cell_km2:,.0f} km² not covered today")
 
     score_supports(kept, blind, transform, cell_km2, VIEWSHED_RADIUS_M)
     kept.sort(key=lambda s: (-s["score_km2"], -(s["hauteur"] or 0)))
@@ -319,7 +319,7 @@ def main():
             # silently (returns None), and the QGIS plugin crashes on it
             # without saying why. Cleaned here, at the source.
             label = re.sub(r'[/\\:*?"<>|]', '-',
-                           norm(support["adresse"]).replace(";", ","))[:40] or "sans adresse"
+                           norm(support["adresse"]).replace(";", ","))[:40] or "no address"
             writer.writerow([
                 f"ANFR {support['sup_id']} - {label}",
                 round(support["lat"], 6), round(support["lon"], 6),
@@ -328,17 +328,17 @@ def main():
                 round(float(support["hauteur"]), 1),
             ])
 
-    print(f"\n{'score':>7} {'haut':>6}  {'accès':<10} {'nature':<18} propriétaire")
+    print(f"\n{'score':>7} {'height':>6}  {'access':<10} {'kind':<18} owner")
     for support in shortlist:
         print(f"{support['score_km2']:>7.0f} {support['hauteur']:>5.0f}m  "
-              f"{'public' if support['public'] else 'OPÉRATEUR':<10} "
+              f"{'public' if support['public'] else 'OPERATOR':<10} "
               f"{support['nature'][:18]:<18} {support['proprietaire'][:28]}")
 
     publics = sum(1 for s in shortlist if s["public"])
-    print(f"\n✅ {out.relative_to(REPO)} — {len(shortlist)} candidats, "
-          f"{publics} publics, {len(shortlist) - publics} opérateurs")
-    print("   Le score est une borne haute sans relief : il sert à trier, pas à")
-    print("   conclure. Ajouter ces lignes à sites.csv et relancer main.py.")
+    print(f"\n✅ {out.relative_to(REPO)} — {len(shortlist)} candidates, "
+          f"{publics} public, {len(shortlist) - publics} operator")
+    print("   The score is an upper bound ignoring terrain: it sorts, it does not")
+    print("   conclude. Append these rows to sites.csv and rerun main.py.")
 
     # Shortlist breakdown: useful to spot, before running a single viewshed,
     # whether one kind of support or one owner dominates enough to skew the
@@ -346,10 +346,10 @@ def main():
     # up every usable structure).
     par_nature = Counter(s["nature"] for s in shortlist)
     par_proprio = Counter(s["proprietaire"] for s in shortlist)
-    print(f"\n   répartition par nature ({len(par_nature)} types) :")
+    print(f"\n   breakdown by kind ({len(par_nature)} kinds):")
     for nature, n in par_nature.most_common():
         print(f"     {n:3d}  {nature}")
-    print(f"\n   répartition par propriétaire ({len(par_proprio)} distincts) :")
+    print(f"\n   breakdown by owner ({len(par_proprio)} distinct):")
     for proprio, n in par_proprio.most_common():
         print(f"     {n:3d}  {proprio}")
 

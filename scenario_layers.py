@@ -183,7 +183,7 @@ def sites_for(spec, paths, config, zone):
     if spec.get("regions_candidats"):
         pool = viewshed_index(spec["regions_candidats"])
         if not pool:
-            print(f"   ⚠️  aucun viewshed dans "
+            print(f"   ⚠️  no viewshed in "
                   f"{', '.join(spec['regions_candidats'])}")
 
     if spec.get("tous"):
@@ -211,7 +211,7 @@ def sites_for(spec, paths, config, zone):
         with rasterio.open(next(iter(paths.values()))) as src:
             cell_km2 = abs(src.transform.a * src.transform.e) / 1e6
         target_cells = int(round(cible / 100 * zone.reference_km2 / cell_km2))
-        print(f"   cible : {cible} % de « {zone.name} » en {criterion}")
+        print(f"   target: {cible} % of « {zone.name} » by {criterion}")
 
     picked = greedy_pick(
         candidates, zone.mask, baseline_masks=baseline,
@@ -225,16 +225,16 @@ def sites_for(spec, paths, config, zone):
 
     if cible is not None:
         if not picked:
-            print(f"   ℹ️  cible de {cible} % déjà atteinte par les sites en place, "
-                  f"ou aucun candidat n'y contribue")
+            print(f"   ℹ️  {cible} % target already reached by the installed sites, "
+                  f"or no candidate contributes to it")
         elif picked[-1][2] < target_cells:
             plafond = 100 * picked[-1][2] * _cell(paths) / zone.reference_km2
-            print(f"   ⚠️  cible de {cible} % HORS D'ATTEINTE : les "
-                  f"{len(candidates)} candidats disponibles plafonnent à "
+            print(f"   ⚠️  {cible} % target OUT OF REACH: the "
+                  f"{len(candidates)} available candidates plateau at "
                   f"{plafond:.1f} %")
         else:
-            print(f"   ✓ cible atteinte avec {len(picked)} site(s) ajouté(s), "
-                  f"{len(base) + len(picked)} au total")
+            print(f"   ✓ target reached with {len(picked)} added site(s), "
+                  f"{len(base) + len(picked)} in total")
     elif n is not None and len(picked) < int(n):
         print(f"   ⚠️  only {len(picked)} of the {n} requested sites still add "
               f"anything to « {zone.name} »")
@@ -257,7 +257,7 @@ def figer(config, region, paths, zone):
     changed = []
     for label, spec in config["scenarios"].items():
         if "sites" in spec:
-            print(f"   = {label:32s} déjà explicite, laissé tel quel")
+            print(f"   = {label:32s} already explicit, left as is")
             continue
         sites, _ = sites_for(spec, paths, config, zone)
         spec["sites"] = sites
@@ -270,15 +270,15 @@ def figer(config, region, paths, zone):
             print(f"        {name}")
 
     if not changed:
-        print("\nRien à figer — tous les scénarios sont déjà explicites.")
+        print("\nNothing to freeze — every scenario is already explicit.")
         return
 
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(config, handle, ensure_ascii=False, indent=2)
         handle.write("\n")
-    print(f"\n✅ {path} — {len(changed)} scénario(s) figé(s)")
-    print("   Relancer avec --figer ne les recalculera plus ; supprimer leur clé")
-    print("   « sites » les rend à nouveau au calcul d'apport marginal.")
+    print(f"\n✅ {path} — {len(changed)} scenario(s) frozen")
+    print("   Rerunning --figer will no longer recompute them; deleting their")
+    print("   « sites » key hands them back to the marginal-gain computation.")
 
 
 def build(label, sites, paths, config, zone, out_root):
@@ -353,10 +353,10 @@ def build(label, sites, paths, config, zone, out_root):
     libelle = config.get("zone_libelle", zone.name)
     print(f"\n{libelle} : {total:,.0f} km²")
     print(stats.to_string(index=False))
-    print(f"\n  couvert     {seen:.0f} km²  ({100 * seen / total:.1f} %)")
-    print(f"  triangulé   {tri:.0f} km²  ({100 * tri / total:.1f} %)")
-    print(f"  hors zone comprise : {total_seen:.0f} km² couverts, "
-          f"{total_tri:.0f} km² triangulés")
+    print(f"\n  covered       {seen:.0f} km²  ({100 * seen / total:.1f} %)")
+    print(f"  triangulated  {tri:.0f} km²  ({100 * tri / total:.1f} %)")
+    print(f"  including outside the zone: {total_seen:.0f} km² covered, "
+          f"{total_tri:.0f} km² triangulated")
     print(f"\n✅ {out_dir}/")
     return meta
 
@@ -395,23 +395,23 @@ def main():
         print(f"{len(paths)} viewsheds :")
         for name in sorted(paths):
             print(f"   {'≡' if name in deployed else ' '} {name}")
-        print(f"\nscénarios de data/{args.region}/scenarios.json :")
+        print(f"\nscenarios in data/{args.region}/scenarios.json:")
         for name, spec in config["scenarios"].items():
             if "sites" in spec:
-                how = f"{len(spec['sites'])} sites listés"
+                how = f"{len(spec['sites'])} sites listed"
             elif spec.get("tous"):
-                how = "tous les sites"
+                how = "all sites"
                 if spec.get("regions_candidats"):
-                    how += f" [vivier : {', '.join(spec['regions_candidats'])}]"
+                    how += f" [pool: {', '.join(spec['regions_candidats'])}]"
             else:
-                how = ("en place" if spec.get("en_place") else "")
+                how = ("installed" if spec.get("en_place") else "")
                 if spec.get("regions_candidats"):
-                    how += f" [vivier : {', '.join(spec['regions_candidats'])}]"
+                    how += f" [pool: {', '.join(spec['regions_candidats'])}]"
                 if spec.get("meilleurs"):
-                    how += f" + {spec['meilleurs']} meilleurs"
+                    how += f" + {spec['meilleurs']} best"
                 if spec.get("cible_pct"):
-                    how += (f" + autant que nécessaire pour "
-                            f"{spec['cible_pct']} % en "
+                    how += (f" + as many as needed for "
+                            f"{spec['cible_pct']} % by "
                             f"{spec.get('critere', config.get('critere', 'couverture'))}")
             print(f"   {name:32s} {how.strip()}")
         return
@@ -422,7 +422,7 @@ def main():
         print(message)
 
     if args.figer:
-        print(f"Figement des scénarios de data/{args.region}/scenarios.json\n")
+        print(f"Freezing the scenarios of data/{args.region}/scenarios.json\n")
         figer(config, args.region, paths, zone)
         return
 
@@ -439,12 +439,12 @@ def main():
         raise SystemExit("❌ pass --scenario, --all, --sites or --list")
 
     for label, spec in jobs:
-        print(f"\n{'=' * 70}\nScénario « {label} »")
+        print(f"\n{'=' * 70}\nScenario « {label} »")
         sites, missing = sites_for(spec, paths, config, zone)
         if missing:
             print(f"⚠️  no viewshed matched: {', '.join(missing)}")
         if not sites:
-            print("⚠️  aucun site — scénario ignoré")
+            print("⚠️  no site — scenario skipped")
             continue
         deployed = deployed_sites(config["regions"], paths)
         for name in sites:

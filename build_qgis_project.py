@@ -45,11 +45,11 @@ def _repo_root():
     home = QgsProject.instance().homePath()
     if not home:
         raise RuntimeError(
-            "Enregistre d'abord le projet QGIS dans le repertoire "
-            "pyro-visibility-analysis, puis relance le script.")
+            "Save the QGIS project inside the pyro-visibility-analysis "
+            "directory first, then rerun the script.")
     if not os.path.isdir(os.path.join(home, 'data')):
         raise RuntimeError(
-            f"Projet enregistre dans {home}, qui n'a pas de dossier data/.")
+            f"Project saved in {home}, which has no data/ folder.")
     return home
 
 
@@ -73,8 +73,8 @@ REGION = globals().get('PYRO_REGION') or _config.REGION
 CONFIG_PATH = os.path.join(ROOT, 'data', REGION, 'scenarios.json')
 if not os.path.exists(CONFIG_PATH):
     raise RuntimeError(
-        f"{CONFIG_PATH} introuvable. Ce fichier decrit la region : regions, "
-        f"zone, dept, scenarios. Voir data/example/scenarios.json.")
+        f"{CONFIG_PATH} not found. This file describes the region: regions, "
+        f"zone, dept, scenarios. See data/example/scenarios.json.")
 with open(CONFIG_PATH, encoding='utf-8') as _handle:
     CONFIG = json.load(_handle)
 
@@ -91,8 +91,8 @@ _run = os.path.join(OUT, 'run.json')
 if os.path.exists(_run):
     with open(_run, encoding='utf-8') as _h:
         _p = json.load(_h)
-    print(f"   rayon {_p.get('viewshed_radius_m', 0) / 1000:.0f} km, "
-          f"cible {_p.get('target_height_m')} m")
+    print(f"   radius {_p.get('viewshed_radius_m', 0) / 1000:.0f} km, "
+          f"target {_p.get('target_height_m')} m")
 
 # One colour per access-cost category. Blue reads as "already there", green as
 # free, amber as a convention to negotiate, red as a recurring bill.
@@ -140,7 +140,7 @@ def site_buckets():
 
 def add_raster(path, name, grp, visible=False, opacity=None, abstract=None):
     if not os.path.exists(path):
-        print(f'   ⚠️  absent : {os.path.basename(path)}')
+        print(f'   ⚠️  missing: {os.path.basename(path)}')
         return None
     layer = QgsRasterLayer(path, name)
     if not layer.isValid():
@@ -200,20 +200,20 @@ def main():
         if not os.path.exists(path):
             path = os.path.join(region_out, 'sites_with_coverage.gpkg')
         if not os.path.exists(path):
-            print(f'   ⚠️  pas de couche de sites pour {region} — lancer '
+            print(f'   ⚠️  no sites layer for {region} — run '
                   f'summary.py --region {region}')
             continue
         sites = QgsVectorLayer(f'{path}|layername=sites', f'Sites — {region}',
                                'ogr')
         if not sites.isValid():
-            print(f'   ⚠️  couche Sites invalide : {path}')
+            print(f'   ⚠️  invalid Sites layer: {path}')
             continue
         style_sites(sites)
         project.addMapLayer(sites, False)
         g_sites.addLayer(sites)
         found += 1
     if not found:
-        print(f'   ⚠️  aucune couche de sites chargée')
+        print(f'   ⚠️  no sites layer loaded')
 
     # --- Scénarios -------------------------------------------------------
     # A delivery does not always carry every computed scenario: defining
@@ -227,7 +227,7 @@ def main():
     if _wanted:
         folders = [f for f in folders
                   if os.path.basename(f)[len('scenario_'):].startswith(tuple(_wanted))]
-        print(f'   scénarios filtrés sur {_wanted} : '
+        print(f'   scenarios filtered on {_wanted}: '
               f'{", ".join(os.path.basename(f) for f in folders)}')
     for index, folder in enumerate(folders):
         label = os.path.basename(folder).replace('scenario_', '')
@@ -357,20 +357,20 @@ def main():
             iface.mapCanvas().refresh()
         except Exception:
             pass
-        print(f'   Cadrage : {focus.width() / 1000:.0f} x '
-              f'{focus.height() / 1000:.0f} km sur {ZONE_LIBELLE}')
+        print(f'   Framing: {focus.width() / 1000:.0f} x '
+              f'{focus.height() / 1000:.0f} km on {ZONE_LIBELLE}')
 
-    print(f'✅ Projet assemblé — {len(folders)} scénarios, '
+    print(f'✅ Project built — {len(folders)} scenarios, '
           f'{sum(counts.values())} viewsheds')
     for categorie in ordre:
         print(f'     {GROUP_LABELS.get(categorie, categorie)} : '
               f'{counts[categorie]}')
-    print(f'   Deux groupes de scénarios : {ZONE_LIBELLE}, et couverture totale')
-    print('   Une seule couche cochée à la fois dans chaque groupe')
-    print('   Rouge = non couvert · Orange = 1 caméra · Vert = triangulé')
-    print(f'   Liste des sites : Propriétés → Métadonnées, ou '
+    print(f'   Two scenario groups: {ZONE_LIBELLE}, and total coverage')
+    print('   Only one layer ticked at a time in each group')
+    print('   Red = not covered · Orange = 1 camera · Green = triangulated')
+    print(f'   Site list: Properties → Metadata, or '
           f'docs/scenarios-{REGION}.md')
-    print('   Pense à réenregistrer le projet.')
+    print('   Remember to save the project again.')
 
 
 main()

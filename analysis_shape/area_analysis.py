@@ -151,7 +151,7 @@ def reccurent_coverage(file, total_file):
     cov = coverage(file)
     if cov == 0:
         raise Exception(
-            "La couverture de la couche est nulle (division par zéro)")
+            "The layer's coverage is zero (division by zero)")
     return recc_coverage / cov
 
 
@@ -192,6 +192,6 @@ def covered_surface(norm_viewsheds_path, fusion_path, csv_path):
                 cov = intersection_coverage(path, path2)
                 output[name][name2] = cov
                 output[name2][name] = cov
-        print(f"{name} ajouté au dictionnaire")
+        print(f"{name} added to the dictionary")
 
     return output
