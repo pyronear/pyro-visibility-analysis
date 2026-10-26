@@ -6,7 +6,8 @@ The step-by-step path is the [Quick start](../README.md#-quick-start-produce-an-
 in the README.
 
 Every terminal script accepts `--region <region>` to override `config.py`, and
-`--help` for the full list of options.
+`--help` for the full list of options. The main steps also have a `make`
+target (`make help`), which prints the command it runs.
 
 ## Scripts
 
@@ -81,11 +82,12 @@ uv run python find_anfr_candidates.py --region <region> --top 25 --max-operateur
 **Produces:** `data/<region>/candidats_anfr.csv`, in the `sites.csv` format.
 Append its rows to `sites.csv` — or, to compare « the partner's list » with
 « the list plus ANFR », put them in their own region folder and name it in a
-scenario's `regions_candidats`. Then audit them and rerun `main.py`: only the
-new viewsheds are computed — unless a new site's detection disc leaves the
-DEM, which was framed on the sites known when it was downloaded. `main.py`
-then refuses it: regenerate the DEM (`generate_dem_fr.py`) and delete
-`output/`, since every viewshed must share the new grid.
+scenario's `regions_candidats`. Then audit them and rerun
+`compute_viewsheds.py`: only the new viewsheds are computed — unless a new
+site's detection disc leaves the DEM, which was framed on the sites known when
+it was downloaded. `compute_viewsheds.py` then refuses it: regenerate the DEM
+(`generate_dem_fr.py`) and delete `output/`, since every viewshed must share
+the new grid.
 
 **Useful options:** `--anfr`, `--refs` (ANFR files), `--top`, `--ecart`
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid
@@ -120,8 +122,8 @@ terrain, which SRTM largely misses.
 
 ### `experiments/fill_dem_gaps.py` — fill Lidar HD holes
 
-**Only if** `generate_dem_fr.py` reports nodata on land. The plugin reads holes
-as pits, so every viewshed crossing one is wrong.
+**Only if** `generate_dem_fr.py` reports nodata on land. A hole reads as a
+pit, so every viewshed crossing one is wrong.
 
 ```bash
 uv run python experiments/fill_dem_gaps.py --region <region>
@@ -135,8 +137,9 @@ Nodata over the sea is expected and harmless.
 
 ### `experiments/downsample_dem.py` — aggregate to 10 m
 
-**Only if** QGIS is too slow at 5 m. 10 m is enough to rank sites (±3 % per
-site against 5 m) and about four times faster. Use `max`, never ask the WMS
+**Only if** the viewsheds are too slow at 5 m (a large pool, a long radius).
+10 m is enough to rank sites (±3 % per site against 5 m) and about four times
+faster. Use `max`, never ask the WMS
 for 10 m directly: it averages server-side and shaves the canopy.
 
 ```bash
@@ -145,7 +148,8 @@ mv data/<region>/dem_l93.tif     data/<region>/dem_l93_5m.tif
 mv data/<region>/dem_l93_10m.tif data/<region>/dem_l93.tif
 ```
 
-`main.py` reads `dem_l93.tif`; open QGIS only once the `mv` commands have run.
+`compute_viewsheds.py` reads `dem_l93.tif`; run it only once the `mv` commands
+have run.
 
 ### `experiments/flatten_mast.py` — remove the mast from the relief
 
@@ -180,19 +184,58 @@ misses most of the canopy, so coverage comes out higher than reality. The
 whole chain works in Lambert-93 (EPSG:2154), which suits France and the areas
 just across its borders.
 
-### `main.py` — viewsheds (QGIS Python console)
+### `compute_viewsheds.py` — viewsheds
 
-For each site: reprojects it, corrects the observer height for the surface
-model (`OBS_HEIGHT = (ground + mast) − surface`, ground from the Lidar HD
-MNT, cached per site in `ground_elevation.json`), runs the plugin, and writes a
-compact uint8 raster. Then normalizes the viewsheds, merges them into a union
-and writes `output.csv`.
+```bash
+make viewsheds REGION=<region>
+uv run python compute_viewsheds.py --region <region> [--workers N]
+```
 
-It records the radius and target height in `output/run.json` and **refuses to
-start** if they differ from `config.py` while viewsheds are on disk (a folder
-without `run.json` counts as the old 15 km / 20 m). To compare settings, use
-one folder per variant: `data/<region>-<variant>/`, same `sites.csv`, a link
-to the DEM.
+For each site of `sites.csv`, not yet on disk:
+
+1. the observer height, corrected for the surface model
+   (`OBS_HEIGHT = (ground + mast) − surface`, ground from the Lidar HD MNT,
+   cached per site in `ground_elevation.json`);
+2. `gdal_viewshed` within `VIEWSHED_RADIUS_M`, target `TARGET_HEIGHT_M`
+   above the surface, Earth curvature with refraction 0.13 unless
+   `EARTH_CURVATURE = False` — several sites in parallel (`--workers`,
+   default all cores);
+3. a 0/1 mask on the full DEM grid, uint8 DEFLATE, in
+   `output/viewsheds_geotiff/`.
+
+Then `output/output.csv` (area per site, share of the union) and the union,
+`output/fusion/fusion_or_all_sites.tif`.
+
+It records radius, target height, curvature and engine in `output/run.json`
+and **refuses to start** if they differ from `config.py` while viewsheds are on
+disk — including folders computed with the former QGIS plugin, which records
+no engine: delete their `output/` and recompute. To compare settings, use one
+folder per variant: `data/<region>-<variant>/`, same `sites.csv`, a link to
+the DEM.
+
+**GDAL ≥ 3.13 is required.** By default it runs from the official image
+`ghcr.io/osgeo/gdal:ubuntu-small-3.13.3`, in one container kept for the whole
+batch; the repository is mounted at the same path inside it, so the DEM and
+`data/` must sit inside the repository (a symlink from one region folder to
+another is fine). Docker on macOS costs about 20 % against a native binary.
+
+#### Native GDAL, without Docker
+
+Point `GDAL_VIEWSHED` at a native `gdal_viewshed` ≥ 3.13; `make gdal-check`
+confirms which one runs and refuses an older version (before 3.13, the
+observer's own cell could block the view — 50 to 80 % lost on sites whose
+camera sits just below the top of its structure in the surface model).
+
+| system | install | then |
+|---|---|---|
+| macOS | `brew install gdal` | `export GDAL_VIEWSHED=$(brew --prefix)/bin/gdal_viewshed` |
+| any, with conda | `conda create -n gdal -c conda-forge "gdal>=3.13"` | `export GDAL_VIEWSHED=<env>/bin/gdal_viewshed` |
+| Ubuntu | `apt` ships an older GDAL (3.8 on 24.04): use conda, or Docker | |
+| Windows | OSGeo4W or conda | `set GDAL_VIEWSHED=…\gdal_viewshed.exe` |
+
+Keep a conda GDAL out of the `uv` environment: conda exports `PROJ_DATA`,
+which the standalone scripts deliberately drop (see `proj_env.py`); only the
+`gdal_viewshed` binary is used.
 
 ### `summary.py` — areas and share per zone
 
@@ -303,13 +346,13 @@ Under `data/<region>/`:
 |---|---|---|
 | `resolution.csv` | `resolve_points_hauts.py` | every resolution decision, to review |
 | `candidats_anfr.csv` | `find_anfr_candidates.py` | ANFR shortlist, `sites.csv` format |
-| `dem_l93.tif` | `generate_dem_fr.py` | the DEM `main.py` reads |
+| `dem_l93.tif` | `generate_dem_fr.py` | the DEM `compute_viewsheds.py` reads |
 | `dem_l93_source.tif` | `fill_dem_gaps.py` | origin of each pixel |
-| `ground_elevation.json` | `main.py` | ground elevation cache per site (`{ground, x, y}`) |
-| `output/run.json` | `main.py` | radius and target height used |
-| `output/viewsheds_geotiff/` | `main.py` | one viewshed per site (uint8, DEFLATE) |
-| `output/normalized/`, `output/fusion/` | `main.py` | normalized viewsheds and their union |
-| `output/output.csv` | `main.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
+| `ground_elevation.json` | `compute_viewsheds.py` | ground elevation cache per site (`{ground, x, y}`) |
+| `output/run.json` | `compute_viewsheds.py` | radius, target height, curvature, engine and GDAL version used |
+| `output/viewsheds_geotiff/` | `compute_viewsheds.py` | one 0/1 mask per site on the DEM grid (uint8, DEFLATE) |
+| `output/fusion/` | `compute_viewsheds.py` | the union of the viewsheds |
+| `output/output.csv` | `compute_viewsheds.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
 | `output/summary.csv`, `output/sites_with_coverage.gpkg` | `summary.py` | km² per site and per zone |
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
 | `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json` |
@@ -319,12 +362,13 @@ Under `data/<region>/`:
 ## 💡 Tips & pitfalls
 
 **Spotting a broken run.** Two sites with exactly the same visible area, or a
-viewshed equal to a full disc (π × radius²), mean QGIS read the DEM as empty —
-usually because it was opened while still being written. Quit QGIS, delete
-`data/<region>/output/` and `dem_l93.tif.aux.xml`, rerun.
+viewshed equal to a full disc (π × radius²), mean the DEM was read as empty —
+usually because the viewsheds were computed while it was still downloading.
+Delete `data/<region>/output/` and rerun once the download is over.
 
-**Changed the DEM or a height?** `main.py` skips viewsheds already on disk and
-cannot see such a change: delete the affected viewsheds (or `output/`) first.
+**Changed the DEM or a height?** `compute_viewsheds.py` skips viewsheds
+already on disk and cannot see such a change: delete the affected viewsheds
+(or `output/`) first.
 A site moved by more than 5 m has its ground elevation measured again.
 
 **« the DEM covers only X % of dept »** — part of the zone lies outside the
