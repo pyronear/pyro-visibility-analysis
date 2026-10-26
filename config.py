@@ -21,3 +21,12 @@ VIEWSHED_RADIUS_M = 20000
 
 # Height above ground at which a smoke plume is considered detectable.
 TARGET_HEIGHT_M = 25
+
+# Earth curvature, with atmospheric refraction. The horizon drops by
+# d² / 2R × (1 − REFRACTION): ~7 m at 10 km, ~27 m at 20 km, ~61 m at 30 km —
+# the order of TARGET_HEIGHT_M. Every run ignored it until the QGIS plugin was
+# replaced; measured on four départements, that overstated coverage by 0.3 to
+# 1 point at 15 km and 3.4 at 30 km, triangulation more. 0.13 is the usual
+# coefficient for visible light (and was the plugin's).
+EARTH_CURVATURE = True
+REFRACTION = 0.13
