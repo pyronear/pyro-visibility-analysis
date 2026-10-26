@@ -283,7 +283,7 @@ def main():
     viewsheds = sorted((REPO / "data" / args.region / "output"
                         / "viewsheds_geotiff").glob("*.tif"))
     if not viewsheds:
-        raise SystemExit("❌ no viewshed — run main.py first")
+        raise SystemExit("❌ no viewshed — run compute_viewsheds.py first")
     reference = str(viewsheds[0])
     zone = load_zone(args.region, args.zone, reference, args.dept)
     with rasterio.open(reference) as src:
@@ -346,7 +346,7 @@ def main():
     print(f"\n✅ {out.relative_to(REPO)} — {len(shortlist)} candidates, "
           f"{publics} public, {len(shortlist) - publics} operator")
     print("   The score is an upper bound ignoring terrain: it sorts, it does not")
-    print("   conclude. Append these rows to sites.csv and rerun main.py.")
+    print("   conclude. Append these rows to sites.csv and rerun compute_viewsheds.py.")
 
     # Shortlist breakdown: useful to spot, before running a single viewshed,
     # whether one kind of support or one owner dominates enough to skew the

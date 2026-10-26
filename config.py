@@ -1,9 +1,10 @@
 # Single place to set the region/SDIS to analyse.
-# All scripts (generate_dem.py, main.py, export.py, visualize.py) read this.
+# Every script reads it as its default --region.
 # It must match the folder name under data/, e.g. data/example/.
 REGION = "example"
 
-# Detection envelope handed to the visibility plugin.
+# Detection envelope handed to gdal_viewshed (compute_viewsheds.py), recorded
+# in data/<region>/output/run.json with the viewsheds.
 #
 # Both were long hardcoded at 15 000 / 20 and never challenged, so every figure
 # the project has produced is a lower bound. Field feedback from one SDIS shows

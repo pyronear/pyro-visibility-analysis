@@ -66,7 +66,7 @@ _config = analysis_shape.config_loader.load_config()
 
 # Comparing variants means switching region often. Defining PYRO_REGION in the
 # console before the exec() avoids editing config.py — and avoids leaving it on
-# a variant, which would then silently drive the next main.py run.
+# a variant, which would then silently drive the next compute_viewsheds.py run.
 #     PYRO_REGION = 'example-th20-r20'
 #     exec(open('.../build_qgis_project.py').read())
 REGION = globals().get('PYRO_REGION') or _config.REGION

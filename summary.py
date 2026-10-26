@@ -47,7 +47,7 @@ from analysis_shape.zones import load_zones  # noqa: E402
 def detection_radius(output_dir):
     """Radius the viewsheds in `output_dir` were actually computed with.
 
-    `main.py` records it in run.json. Falling back to config.py would relabel a
+    `compute_viewsheds.py` records it in run.json. Falling back to config.py would relabel a
     region computed at 15 km as soon as the default changes, so say plainly when
     the file is missing rather than quietly trusting the current setting.
     """
@@ -115,7 +115,7 @@ def main():
     output_dir = os.path.join("data", region, "output")
     metrics_path = os.path.join(output_dir, "output.csv")
     if not os.path.exists(metrics_path):
-        raise SystemExit(f"❌ {metrics_path} not found — run main.py first")
+        raise SystemExit(f"❌ {metrics_path} not found — run compute_viewsheds.py first")
 
     metrics = pd.read_csv(metrics_path, delimiter=";")
     metrics["Site"] = metrics["Site"].map(normalise)
