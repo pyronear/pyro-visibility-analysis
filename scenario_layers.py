@@ -91,6 +91,29 @@ def viewshed_index(regions):
     return paths
 
 
+def scenario_paths(spec, paths):
+    """Viewsheds a scenario may name: `paths`, plus those of its candidate regions.
+
+    `regions_candidats` may name a folder that is not in `regions` (docs: ANFR
+    candidates in their own region folder). Its sites are picked from that pool,
+    so building or re-reading a frozen list must find them too.
+
+    A name with a different viewshed in `paths` and in the pool is refused: the
+    greedy scores the pool's, the deployed baseline reads `paths`', and no single
+    lookup can give each step the raster it used.
+    """
+    if not spec.get("regions_candidats"):
+        return paths
+    lookup = dict(paths)
+    for name, path in viewshed_index(spec["regions_candidats"]).items():
+        if lookup.setdefault(name, path) != path:
+            raise SystemExit(
+                f"❌ « {name} » has a viewshed in « regions » and another one in "
+                f"« regions_candidats »:\n   {lookup[name]}\n   {path}\n"
+                f"   Rename one of the two sites.")
+    return lookup
+
+
 def deployed_sites(regions, paths):
     """Sites flagged EN PLACE in any of the regions' sites.csv."""
     deployed = []
@@ -170,7 +193,8 @@ def sites_for(spec, paths, config, zone):
     then on the list is what runs.
     """
     if "sites" in spec:
-        return resolve(spec["sites"], paths)
+        # A list frozen from a candidate pool names sites of those regions too.
+        return resolve(spec["sites"], scenario_paths(spec, paths))
 
     # A scenario may restrict its pool to some regions: « what the partner's
     # list gives alone » and « the list completed from ANFR » differ only in
@@ -445,7 +469,7 @@ def main():
         deployed = deployed_sites(config["regions"], paths)
         for name in sites:
             print(f"   {'≡' if name in deployed else '+'} {name}")
-        build(label, sites, paths, config, zone, out_root)
+        build(label, sites, scenario_paths(spec, paths), config, zone, out_root)
 
 
 if __name__ == "__main__":

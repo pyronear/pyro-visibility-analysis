@@ -286,7 +286,7 @@ own (`data/<region>/zones/<name>.gpkg`), leave it out.
 | `"cible_pct": 90` | as many sites as needed to reach 90 % of the zone |
 | `"critere": "triangulation"` | optimise triangulation instead of coverage |
 | `"max_operateurs": 2` | at most 2 paid operator sites, the rest public |
-| `"regions_candidats": [...]` | restrict the pool to some regions |
+| `"regions_candidats": [...]` | pick candidates from these regions only; they need not be in `regions` |
 
 ```bash
 uv run python scenario_layers.py --region <region> --list         # what is available
