@@ -282,7 +282,8 @@ def figer(config, region, paths, zone):
         sites, _ = sites_for(spec, paths, config, zone)
         spec["sites"] = sites
         spec["_fige_le"] = date.today().isoformat()
-        spec["_fige_critere"] = config.get("critere", "couverture")
+        # The scenario's own criterion wins, as in sites_for().
+        spec["_fige_critere"] = spec.get("critere", config.get("critere", "couverture"))
         spec["_fige_zone"] = zone.name
         changed.append(label)
         print(f"   → {label:32s} {len(sites)} sites")
