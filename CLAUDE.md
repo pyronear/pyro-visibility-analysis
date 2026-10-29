@@ -46,6 +46,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 |---|---|---|
 | `resolve_points_hauts.py` | terminal | partner spreadsheet (communes/addresses) → `sites.csv` |
 | `find_anfr_candidates.py` | terminal | new high points from the ANFR register, ranked by blind spot |
+| `fetch_zone.py` | terminal | a zone of interest (public forest…) from the IGN WFS → `zones/<name>.gpkg` |
 | `audit_sites.py` | terminal | check declared heights against Lidar HD MNT/MNS |
 | `experiments/generate_dem_fr.py` | terminal | Lidar HD surface model over WMS |
 | `experiments/fill_dem_gaps.py` | terminal | fill Lidar HD holes in a surface model |

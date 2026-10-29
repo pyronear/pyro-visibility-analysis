@@ -93,6 +93,47 @@ for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid
 operator supports), `--publics-seulement`.
 
+### `fetch_zone.py` — a zone of interest from the IGN WFS
+
+**When:** the zone of interest is one named public polygon — typically a
+forest — rather than the OLD or the département.
+
+Writes `data/<region>/zones/<name>.gpkg` (Lambert-93, layer `zone`, source
+attributes kept) from BD TOPO's public forests (`BDTOPO_V3:foret_publique`:
+every ONF-managed forest — domaniale, communale, départementale — with its
+toponym and ONF identifier; private forests are not in it).
+
+```bash
+uv run python fetch_zone.py --region <region> --name <zone> --point <lat>,<lon>
+uv run python fetch_zone.py --region <region> --name <zone> --onf F12345X
+```
+
+`--point` takes the polygon(s) containing the point; `--onf` the forest with
+that ONF identifier (`identifiants_sources`), stable across BD TOPO editions.
+
+**Finding the ONF identifier.** Run `--point` first, with a coordinate read
+on any map: the script prints each polygon's toponym, area and `--onf`
+identifier. Check, in this order: the **name** (a point just across the edge
+lands in the neighbouring forest, and the name says so); the **area**, against
+what is known of the forest (BD TOPO holds public forests only, so a forest
+partly in private hands comes out smaller); then the **outline** on a map —
+open the `.gpkg` over OpenStreetMap, or look at the magenta « Zone d'enjeu »
+layer of the QGIS project. A wrong pick is fixed by running the script again,
+which replaces the file. Then keep the `--onf` form for a command that will
+not move. To read it by hand, in QGIS: *Layer → Add Layer →
+Add WFS Layer*, new connection `https://data.geopf.fr/wfs/ows`, add
+`BDTOPO_V3:foret_publique` (zoom on the area first), then click the forest
+with *Identify Features*: `toponyme` and `identifiants_sources`
+(`ONF:F12345X`). The « Forêts publiques » layer of cartes.gouv.fr shows the
+forests, but its information panel may not give the identifier.
+
+With `--layer`, `--point` works on any polygon layer of the same WFS. Several
+polygons make a zone that is their union; the script says so. Then set
+`"zone": "<zone>"` and `"zone_libelle"` in `scenarios.json`, and pass
+`--zones <zone>` (`ZONES=<zone>` with make) to `summary.py` and
+`prioritise_sites.py`. Also `make zone REGION=<region> NAME=<zone>
+POINT=<lat>,<lon>` (or `ONF=<id>`).
+
 ### `audit_sites.py` — check the heights
 
 Compares each declared height with the Lidar HD MNT and MNS around the point.
@@ -364,6 +405,7 @@ Under `data/<region>/`:
 | `output/output.csv` | `compute_viewsheds.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
 | `output/summary.csv`, `output/sites_with_coverage.gpkg` | `summary.py` | km² per site and per zone |
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
+| `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest, layer `zone` |
 | `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json`, `sites.gpkg` (the scenario's sites as points) |
 
 ---
