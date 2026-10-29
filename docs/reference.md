@@ -318,6 +318,11 @@ without editing `config.py`, define `PYRO_REGION = '<region>'` in the console
 before the `exec`; `PYRO_SCENARIOS = ['00', '01']` keeps only the scenarios
 whose name starts with those prefixes.
 
+Each scenario also gets its own points layer, named like its coverage raster,
+in the « Sites par scénario » subgroup of « Sites »: it reads
+`output/scenario_<name>/sites.gpkg`, which scenario folders built before it
+existed lack — rerun `scenario_layers.py` to get them.
+
 ### `package_project.py` — deliverable zip
 
 ```bash
@@ -359,7 +364,7 @@ Under `data/<region>/`:
 | `output/output.csv` | `compute_viewsheds.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
 | `output/summary.csv`, `output/sites_with_coverage.gpkg` | `summary.py` | km² per site and per zone |
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
-| `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json` |
+| `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json`, `sites.gpkg` (the scenario's sites as points) |
 
 ---
 

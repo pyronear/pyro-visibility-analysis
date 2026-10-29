@@ -43,6 +43,7 @@ from proj_env import use_bundled_proj
 
 use_bundled_proj()  # must precede pyproj/geopandas/rasterio imports
 
+import geopandas as gpd  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import rasterio  # noqa: E402
@@ -127,6 +128,46 @@ def owner_categories(regions):
         for _, row in sites.iterrows():
             categories[nfc(row["Name"])] = categoriser(row.get("Owner", ""), table)
     return categories
+
+
+def write_site_points(sites, regions, path):
+    """The scenario's sites as points, coloured like the project's Sites layer.
+
+    Viewshed names are the sites.csv names read through site_name(), so the
+    join is made on that same form.
+    """
+    wanted = set(sites)
+    rows = []
+    for region in regions:
+        csv_path = os.path.join("data", region, "sites.csv")
+        if not os.path.exists(csv_path):
+            continue
+        table = charger(region)
+        frame = pd.read_csv(csv_path, delimiter=";")
+        column = "Status" if "Status" in frame.columns else "Owner"
+        for _, row in frame.iterrows():
+            name = nfc(row["Name"])
+            if name not in wanted:
+                continue
+            wanted.discard(name)
+            deployed = str(row.get(column, "")).strip() == DEPLOYED_MARKER
+            rows.append({
+                "Name": name, "Height": row.get("Height"),
+                "categorie": ("en place" if deployed
+                              else categoriser(row.get("Owner", ""), table)),
+                "lon": float(row["Longitude"]), "lat": float(row["Latitude"]),
+            })
+    if wanted:
+        print(f"⚠️  not in any sites.csv, left out of sites.gpkg: "
+              f"{', '.join(sorted(wanted))}")
+    if not rows:
+        return
+    frame = pd.DataFrame(rows)
+    points = gpd.GeoDataFrame(
+        frame.drop(columns=["lon", "lat"]),
+        geometry=gpd.points_from_xy(frame["lon"], frame["lat"]),
+        crs="EPSG:4326").to_crs("EPSG:2154")
+    points.to_file(path, driver="GPKG", layer="sites")
 
 
 _CELL_CACHE = {}
@@ -345,6 +386,10 @@ def build(label, sites, paths, config, zone, out_root):
     }
     with open(os.path.join(out_dir, "meta.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, ensure_ascii=False, indent=2)
+
+    # One points layer per scenario, so the QGIS project can show which sites
+    # a coverage raster is made of without reading its metadata.
+    write_site_points(sites, config["regions"], os.path.join(out_dir, "sites.gpkg"))
 
     libelle = config.get("zone_libelle", zone.name)
     print(f"\n{libelle} : {total:,.0f} km²")
