@@ -93,6 +93,33 @@ for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid
 operator supports), `--publics-seulement`.
 
+#### Around one zone: `--around-zone`
+
+**When:** the question is one small zone — a forest, a massif — rather than a
+département: « can the existing high points see it? ». The zone comes from
+`data/<region>/zones/<zone>.gpkg` ([`fetch_zone.py`](#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs)).
+
+Every usable support within `--radius` (default `VIEWSHED_RADIUS_M`) of the
+zone **outline** is kept, whatever its département: a zone near a border is
+watched from both sides. There is no blind-spot score — on a zone a few km
+wide every support in range would score the whole zone — and no shortlist:
+viewsheds cost about a second each, so they are all computed and the greedy
+decides. Supports are listed nearest first; `--top`, `--ecart`,
+`--max-operateurs`, `--publics-seulement` and `--hauteur-min` still apply.
+Needs neither a département nor an earlier viewshed: it is the **first** step
+of such a region.
+
+```bash
+uv run python find_anfr_candidates.py --region <region> --around-zone <zone>
+cp data/<region>/candidats_anfr.csv data/<region>/sites.csv   # empty region
+```
+
+The DEM is then framed on `sites.csv` + radius, as usual. ⚠️ `SUP_NM_HAUT`
+is the support height **including** its antenna mast: the camera would sit
+lower. And `--hauteur-min 30` (the default) leaves out short masts on a
+summit, which may see the zone better than a tall pylon in the plain — try
+`--hauteur-min 10` too.
+
 ### `fetch_zone.py` — a zone of interest from the IGN WFS
 
 **When:** the zone of interest is one named public polygon — typically a
@@ -309,8 +336,9 @@ pass `--zones dept` where there is no OLD layer. Writes
 
 **The département, in every script**, comes from `"dept"` in
 `data/<region>/scenarios.json`; `--dept` overrides it. It is only needed for
-the `dept` zone and the ANFR scripts — outside France, or with a zone of your
-own (`data/<region>/zones/<name>.gpkg`), leave it out.
+the `dept` zone and the ANFR scripts (not `find_anfr_candidates.py
+--around-zone`) — outside France, or with a zone of your own
+(`data/<region>/zones/<name>.gpkg`), leave it out.
 
 ### `scenario_layers.py` and `scenarios.json` — scenarios
 
