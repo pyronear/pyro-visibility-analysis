@@ -18,6 +18,8 @@ from rasterio.warp import calculate_default_transform, reproject, Resampling  # 
 from shapely.geometry import shape, MultiPolygon  # noqa: E402
 from PIL import Image  # noqa: E402
 
+from analysis_shape.names import site_name  # noqa: E402
+
 # === CONFIGURATION ===
 from config import REGION  # set the region in config.py
 folder = REGION
@@ -45,10 +47,12 @@ os.makedirs(output_root, exist_ok=True)
 # === HELPER FUNCTIONS ===
 
 def get_station_info(station_name):
+    """The sites.csv row behind a `viewshed_<Name>` file stem, or None."""
+    wanted = site_name(station_name.removeprefix("viewshed_"))
     with open(stations_csv_path, newline="", encoding="utf-8") as csvfile:
         reader = csv.DictReader(csvfile, delimiter=";")
         for row in reader:
-            if row["Name"] in station_name:
+            if site_name(row["Name"]) == wanted:
                 return {
                     "lat": float(row["Latitude"]),
                     "lon": float(row["Longitude"]),

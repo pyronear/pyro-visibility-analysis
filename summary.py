@@ -39,12 +39,9 @@ import rasterio  # noqa: E402
 from config import REGION, VIEWSHED_RADIUS_M  # noqa: E402
 from analysis_shape.area_analysis import coverage  # noqa: E402
 from analysis_shape.gestionnaires import categoriser, charger  # noqa: E402
+from analysis_shape.names import site_name as normalise  # noqa: E402
 from analysis_shape.zones import load_zones  # noqa: E402
 
-def normalise(name):
-    """macOS stores filenames in NFD, sites.csv is NFC — join on NFC."""
-    import unicodedata
-    return unicodedata.normalize("NFC", str(name))
 
 
 def detection_radius(output_dir):
@@ -77,7 +74,7 @@ def zone_columns(region, output_dir, summary, zone_names, dept):
     every overlap, which is exactly what the union is there to avoid.
     """
     viewsheds = {
-        normalise(os.path.basename(p))[len("viewshed_"):-len(".tif")]: p
+        normalise(os.path.basename(p)[len("viewshed_"):-len(".tif")]): p
         for p in sorted(glob.glob(os.path.join(output_dir, "viewsheds_geotiff",
                                                "*.tif")))
     }

@@ -37,12 +37,13 @@ import csv  # noqa: E402
 # Reload before binding the names: reloading a module does not rebind names
 # already imported from it, so the order here is what makes the refresh real.
 # Dependencies first — viewshed holds references into terrain and utils.
+import analysis_shape.names  # noqa: E402
 import analysis_shape.terrain  # noqa: E402
 import analysis_shape.area_analysis  # noqa: E402
 import analysis_shape.utils  # noqa: E402
 import analysis_shape.viewshed  # noqa: E402
 
-for _module in (analysis_shape.terrain, analysis_shape.area_analysis,
+for _module in (analysis_shape.names, analysis_shape.terrain, analysis_shape.area_analysis,
                 analysis_shape.utils, analysis_shape.viewshed):
     importlib.reload(_module)
 

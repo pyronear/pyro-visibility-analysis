@@ -17,11 +17,11 @@ import glob
 import json
 import os
 import sys
-import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from analysis_shape.gestionnaires import categoriser, charger  # noqa: E402
+from analysis_shape.names import site_name  # noqa: E402
 
 # Labels for the owner categories, in reading order.
 ETIQUETTES = {"en place": "*en place*", "public": "public",
@@ -37,7 +37,7 @@ def owners(regions):
             continue
         with open(path, newline="", encoding="utf-8") as handle:
             for row in csv.DictReader(handle, delimiter=";"):
-                name = unicodedata.normalize("NFC", row["Name"]).strip()
+                name = site_name(row["Name"])
                 deployed = str(row.get("Status", "")).strip() == "EN PLACE"
                 table[name] = (row.get("Owner", ""), row.get("Height", ""),
                                deployed)

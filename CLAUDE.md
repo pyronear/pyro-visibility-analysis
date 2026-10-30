@@ -139,8 +139,9 @@ another département. Compare on `code.zfill(5)` and keep a distance check
 against the département outline.
 
 **NFD / NFC.** macOS stores file names in NFD, CSVs are NFC: any join between
-names derived from files and `sites.csv` fails silently. Normalise with
-`unicodedata.normalize('NFC', name).strip()`.
+names derived from files and `sites.csv` fails silently. Read every `Name`
+through `analysis_shape/names.py::site_name()`, which also cleans path
+characters (next pitfall).
 
 **`nodata` on a binary mask.** Declaring `nodata=0` on a viewshed made
 `gdal:rastercalculator` rewrite non-visible cells as 255, read back as
@@ -154,8 +155,14 @@ and overwrote another site's normalized viewshed. Use `os.path.splitext`.
 The name becomes `viewshed_<Name>.tif`; a `/` reads as a missing subfolder,
 `gdal.Create()` returns `None`, and the QGIS plugin crashes with
 `'NoneType' object has no attribute 'SetProjection'` — no hint of the cause.
-Names are cleaned in `find_anfr_candidates.py` and again in `viewshed.py`. If
-a site name still holds `/ \ : * ? " < > |`, look here first.
+Every read of `Name` goes through `analysis_shape/names.py::site_name()`
+(NFC, stripped, path-safe), so the file name and the CSV name agree in every
+join. A script that reads `Name` any other way loses such sites silently.
+
+**Sites appended after the DEM.** The DEM is framed on `sites.csv` at
+download time. A site added later (ANFR candidates) can sit near its edge and
+get a clipped viewshed. `terrain.check_dem_extent()` refuses it before the
+first viewshed; the answer is a new DEM and an empty `output/`.
 
 **`unary_union` on vectorised viewsheds.** `shapes()` returns disjoint parts;
 the union was useless and took hours on ~90 000 polygons. `MultiPolygon` is

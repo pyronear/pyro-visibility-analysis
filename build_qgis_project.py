@@ -61,6 +61,7 @@ if ROOT not in sys.path:
 # `importlib.reload` would raise « spec not found for the module 'config' ».
 import analysis_shape.config_loader  # noqa: E402
 importlib.reload(analysis_shape.config_loader)
+from analysis_shape.names import site_name  # noqa: E402
 _config = analysis_shape.config_loader.load_config()
 
 # Comparing variants means switching region often. Defining PYRO_REGION in the
@@ -116,7 +117,6 @@ GROUP_LABELS = {
 def site_buckets():
     """Map every site name to its owner category, across all the regions."""
     import csv
-    import unicodedata
 
     from analysis_shape.gestionnaires import categoriser, charger
 
@@ -128,7 +128,7 @@ def site_buckets():
             continue
         with open(path, newline='', encoding='utf-8') as handle:
             for row in csv.DictReader(handle, delimiter=';'):
-                name = unicodedata.normalize('NFC', row['Name']).strip()
+                name = site_name(row['Name'])
                 if str(row.get('Status', '')).strip() == 'EN PLACE':
                     buckets[name] = 'en place'
                 elif str(row.get('Owner', '')).strip() == 'EN PLACE':
@@ -304,9 +304,7 @@ def main():
                                'viewsheds_geotiff', '*.tif')
         for path in sorted(glob.glob(pattern)):
             name = os.path.basename(path)[len('viewshed_'):-len('.tif')]
-            import unicodedata
-            bucket = buckets.get(unicodedata.normalize('NFC', name).strip(),
-                                 ordre[-1])
+            bucket = buckets.get(site_name(name), ordre[-1])
             if bucket not in subgroups:
                 bucket = ordre[-1]
             layer = add_raster(path, name, subgroups[bucket])

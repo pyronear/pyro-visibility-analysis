@@ -28,7 +28,6 @@ Usage:
 import argparse
 import glob
 import os
-import unicodedata
 
 from proj_env import use_bundled_proj
 
@@ -40,22 +39,18 @@ import rasterio  # noqa: E402
 
 from config import REGION  # noqa: E402
 from analysis_shape.gestionnaires import categoriser, charger  # noqa: E402
+from analysis_shape.names import site_name as nfc  # noqa: E402
 from analysis_shape.selection import WindowedMask, greedy_pick  # noqa: E402
 from analysis_shape.zones import load_zones  # noqa: E402
 
 os.environ.setdefault("OGR_GEOJSON_MAX_OBJ_SIZE", "0")
 
 
-def nfc(value):
-    """macOS stores filenames in NFD, sites.csv is NFC — compare on NFC."""
-    return unicodedata.normalize("NFC", str(value))
-
-
 def viewshed_paths(region):
     folder = os.path.join("data", region, "output", "viewsheds_geotiff")
     paths = {}
     for path in sorted(glob.glob(os.path.join(folder, "*.tif"))):
-        name = nfc(os.path.basename(path))[len("viewshed_"):-len(".tif")]
+        name = nfc(os.path.basename(path)[len("viewshed_"):-len(".tif")])
         paths[name] = path
     return paths
 

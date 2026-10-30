@@ -38,7 +38,6 @@ import argparse
 import glob
 import json
 import os
-import unicodedata
 
 from proj_env import use_bundled_proj
 
@@ -50,6 +49,7 @@ import rasterio  # noqa: E402
 
 from config import REGION  # noqa: E402
 from analysis_shape.gestionnaires import categoriser, charger  # noqa: E402
+from analysis_shape.names import site_name as nfc  # noqa: E402
 from analysis_shape.selection import WindowedMask, greedy_pick  # noqa: E402
 from analysis_shape.zones import load_zone  # noqa: E402
 
@@ -64,10 +64,6 @@ COLORMAP = {
 }
 
 DEPLOYED_MARKER = "EN PLACE"
-
-
-def nfc(value):
-    return unicodedata.normalize("NFC", str(value)).strip()
 
 
 def load_config(region):

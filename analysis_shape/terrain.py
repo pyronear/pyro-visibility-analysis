@@ -30,6 +30,7 @@ import urllib.request
 
 import numpy as np
 import rasterio
+import rasterio.warp
 
 WMS_URL = "https://data.geopf.fr/wms-r"
 MNT_LAYER = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93"
@@ -41,6 +42,38 @@ MNT_LAYER = "IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93"
 MNT_FALLBACK_LAYER = "ELEVATION.ELEVATIONGRIDCOVERAGE"
 NODATA_FLOOR = -100.0
 CACHE_NAME = "ground_elevation.json"
+
+
+def check_dem_extent(dem_path, sites, radius_m):
+    """Refuse any site whose detection disc leaves the DEM.
+
+    `sites` is an iterable of (name, longitude, latitude) in WGS84. The DEM is
+    framed on sites.csv at download time, so a site appended later (ANFR
+    candidates, a partner's second list) can sit near the edge: its viewshed
+    would then be clipped by the raster boundary, understating its area and
+    its rank with no warning. The fix is a new DEM, which changes the grid —
+    and every viewshed must share one grid — so output/ goes with it.
+    """
+    sites = list(sites)
+    if not sites:
+        return
+    with rasterio.open(dem_path) as src:
+        bounds, crs = src.bounds, src.crs
+    if crs is None or crs.to_epsg() is None:
+        crs = rasterio.crs.CRS.from_epsg(2154)  # the chain is Lambert-93
+    names, lons, lats = zip(*sites)
+    xs, ys = rasterio.warp.transform("EPSG:4326", crs, list(lons), list(lats))
+    outside = [name for name, x, y in zip(names, xs, ys)
+               if x - radius_m < bounds.left or x + radius_m > bounds.right
+               or y - radius_m < bounds.bottom or y + radius_m > bounds.top]
+    if outside:
+        raise RuntimeError(
+            f"The DEM does not cover the {radius_m / 1000:g} km disc of "
+            f"{len(outside)} site(s): {', '.join(outside)}.\n"
+            f"   Their viewsheds would be clipped by the raster edge. "
+            f"Regenerate the DEM (generate_dem_fr.py frames it on sites.csv), "
+            f"then delete {os.path.dirname(dem_path)}/output/: "
+            f"a new DEM is a new grid, and every viewshed must share it.")
 
 
 def sample_raster(raster_path, x, y):

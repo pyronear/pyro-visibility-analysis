@@ -82,7 +82,10 @@ uv run python find_anfr_candidates.py --region <region> --top 25 --max-operateur
 Append its rows to `sites.csv` — or, to compare « the partner's list » with
 « the list plus ANFR », put them in their own region folder and name it in a
 scenario's `regions_candidats`. Then audit them and rerun `main.py`: only the
-new viewsheds are computed.
+new viewsheds are computed — unless a new site's detection disc leaves the
+DEM, which was framed on the sites known when it was downloaded. `main.py`
+then refuses it: regenerate the DEM (`generate_dem_fr.py`) and delete
+`output/`, since every viewshed must share the new grid.
 
 **Useful options:** `--anfr`, `--refs` (ANFR files), `--top`, `--ecart`
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid

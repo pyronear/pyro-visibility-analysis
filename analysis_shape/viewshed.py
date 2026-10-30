@@ -1,6 +1,5 @@
 import csv
 import os
-import re
 
 from qgis.core import (
     QgsProject, QgsVectorLayer, QgsField, QgsFeature,
@@ -11,7 +10,8 @@ from PyQt5.QtCore import QVariant
 from qgis import processing
 
 from analysis_shape.area_analysis import compact_binary_raster
-from analysis_shape.terrain import load_cache, observer_height
+from analysis_shape.names import site_name
+from analysis_shape.terrain import check_dem_extent, load_cache, observer_height
 from analysis_shape.utils import display_tif
 # Constant
 DEFAULT_HEIGHT = 30  # in meters, above bare ground (not an NGF altitude)
@@ -111,17 +111,19 @@ def viewsheds_create(csv_path, dem_path, elevation_style_file, output, layer_tre
     with open(csv_path, newline='', encoding='utf-8') as csvfile:
         lecteur_csv = list(csv.DictReader(csvfile, delimiter=';'))
 
+        # Before the first viewshed: a site appended since the DEM was framed
+        # would otherwise be computed, clipped, and skipped on every rerun.
+        check_dem_extent(dem_path, ((site_name(l['Name']), float(l['Longitude']),
+                                     float(l['Latitude'])) for l in lecteur_csv),
+                         radius_m)
+
         for i, ligne in enumerate(lecteur_csv, 1):
 
-            # ANFR/BD TOPO addresses sometimes carry a character illegal in
-            # a path ('/' in a motorway address such as « A6 >Paris/Aire de
-            # Service », a direction of travel with '>'…). A '/' turns the
-            # name into a missing subfolder; the QGIS plugin does not check
-            # that gdal.Create() succeeded before calling SetProjection() on
-            # it, and crashes with an error that says nothing of the real
-            # cause (`'NoneType' object has no attribute 'SetProjection'`).
-            # Cleaned once here, for every name downstream.
-            Name_point = re.sub(r'[/\\:*?"<>|]', '-', ligne['Name'])
+            # The same spelling every downstream script joins on. A '/' in
+            # the raw name would turn it into a missing subfolder; the QGIS
+            # plugin does not check that gdal.Create() succeeded and crashes
+            # with `'NoneType' object has no attribute 'SetProjection'`.
+            Name_point = site_name(ligne['Name'])
 
             output_file = os.path.join(output, f"viewshed_{Name_point}.tif")
             # A large pool runs for hours in the QGIS console: say where it is.

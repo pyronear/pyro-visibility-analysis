@@ -261,20 +261,6 @@ def main():
     buffer_m = (args.buffer_km * 1000 if args.buffer_km is not None
                 else VIEWSHED_RADIUS_M + BUFFER_MARGIN_M)
 
-    # Never silently destroy the SRTM DEM: main.py reads dem_l93.tif, so we take
-    # its name, but the previous file is kept alongside as the epic's baseline.
-    if os.path.exists(output_path):
-        backup = output_path.replace(".tif", "_previous.tif")
-        if os.path.exists(backup):
-            # Never overwrite an existing backup: on a second run that would
-            # replace the original SRTM DEM with a Lidar HD one.
-            os.remove(output_path)
-            print(f"ℹ️  {backup} already exists; discarded the previous "
-                  f"{os.path.basename(output_path)}")
-        else:
-            os.rename(output_path, backup)
-            print(f"ℹ️  existing DEM moved to {backup}")
-
     bbox = sites_bbox_l93(csv_path, buffer_m)
     print(f"Region       : {args.region}")
     print(f"Product      : Lidar HD {args.product} ({LAYERS[args.product]})")
@@ -282,7 +268,31 @@ def main():
     print(f"BBox (L93)   : {bbox[0]:.0f}, {bbox[1]:.0f}, {bbox[2]:.0f}, {bbox[3]:.0f}")
     print(f"Extent       : {(bbox[2]-bbox[0])/1000:.1f} x {(bbox[3]-bbox[1])/1000:.1f} km")
 
-    pct_nodata = build_dem(LAYERS[args.product], bbox, args.resolution, output_path)
+    # Downloaded next to the target and swapped in only once complete: the
+    # current DEM (hours of download, often patched by fill_dem_gaps.py or
+    # flatten_mast.py since) must survive a WMS failure halfway through.
+    partial_path = f"{output_path}.part"
+    try:
+        pct_nodata = build_dem(LAYERS[args.product], bbox, args.resolution,
+                               partial_path)
+    except BaseException:
+        if os.path.exists(partial_path):
+            os.remove(partial_path)
+        raise
+
+    # Never silently destroy the SRTM DEM: main.py reads dem_l93.tif, so we take
+    # its name, but the previous file is kept alongside as the epic's baseline.
+    # An existing backup is never overwritten: on a second run that would
+    # replace the original SRTM DEM with a Lidar HD one.
+    if os.path.exists(output_path):
+        backup = output_path.replace(".tif", "_previous.tif")
+        if os.path.exists(backup):
+            print(f"ℹ️  {backup} already exists; replacing the previous "
+                  f"{os.path.basename(output_path)}")
+        else:
+            os.rename(output_path, backup)
+            print(f"ℹ️  existing DEM moved to {backup}")
+    os.replace(partial_path, output_path)
 
     size_mb = os.path.getsize(output_path) / 1e6
     print(f"\n✅ DEM saved to {output_path} ({size_mb:.0f} MB on disk)")
