@@ -146,7 +146,7 @@ def main():
     size_mb = os.path.getsize(output_path) / 1e6
     pct = 100 * nodata_cells / (out_width * out_height)
     print(f"\n✅ {output_path} ({size_mb:.0f} MB, {pct:.2f} % nodata)")
-    print("   To use it, point main.py at it or rename it to dem_l93.tif.")
+    print("   To use it, rename it to dem_l93.tif.")
 
 
 if __name__ == "__main__":

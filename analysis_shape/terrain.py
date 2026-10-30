@@ -70,9 +70,9 @@ def check_dem_extent(dem_path, sites, radius_m):
         raise RuntimeError(
             f"The DEM does not cover the {radius_m / 1000:g} km disc of "
             f"{len(outside)} site(s): {', '.join(outside)}.\n"
-            f"   Their viewsheds would be clipped by the raster edge. "
-            f"Regenerate the DEM (generate_dem_fr.py frames it on sites.csv), "
-            f"then delete {os.path.dirname(dem_path)}/output/: "
+            f"   Their viewsheds are clipped by the raster edge. For full "
+            f"discs, regenerate the DEM (generate_dem_fr.py frames it on "
+            f"sites.csv), then delete {os.path.dirname(dem_path)}/output/: "
             f"a new DEM is a new grid, and every viewshed must share it.")
 
 

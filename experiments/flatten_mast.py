@@ -36,7 +36,7 @@ canopy would be deleted. On that test site the spike fitted within 15 m and the
 ground was found again from 15-25 m, hence the 20 m default.
 
 ⚠️ Edits the DEM in place, like `fill_dem_gaps.py`. Viewsheds already computed
-must be deleted afterwards, as `main.py` skips those that exist.
+must be deleted afterwards, as `compute_viewsheds.py` skips those that exist.
 
 Usage:
     uv run python experiments/flatten_mast.py --dry-run
@@ -158,9 +158,8 @@ def main():
     with open(log_path, "w", encoding="utf-8") as handle:
         json.dump(journal, handle, ensure_ascii=False, indent=2)
     print(f"\n✅ DEM edited in place. Log: {log_path}")
-    print("   Purge the viewsheds before rerunning main.py:")
+    print("   Purge the viewsheds before rerunning compute_viewsheds.py:")
     print(f"     rm -rf data/{args.region}/output/viewsheds_geotiff "
-          f"data/{args.region}/output/normalized "
           f"data/{args.region}/output/fusion "
           f"data/{args.region}/output/output.csv")
     print(f"     rm -f {dem_path}.aux.xml")

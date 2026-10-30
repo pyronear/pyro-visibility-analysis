@@ -88,7 +88,7 @@ LAYERS = {
 TARGET_CRS = "EPSG:2154"
 NODATA = -9999.0
 
-# The viewshed radius main.py will use. Anything beyond it can never be
+# The viewshed radius compute_viewsheds.py will use. Anything beyond it can never be
 # visible, so the DEM buffer is derived from it. It used to be hardcoded at
 # 15 km here while config.py moved to 20 km: the default DEM then clipped the
 # horizon of every viewshed, silently.
@@ -280,8 +280,9 @@ def main():
             os.remove(partial_path)
         raise
 
-    # Never silently destroy the SRTM DEM: main.py reads dem_l93.tif, so we take
-    # its name, but the previous file is kept alongside as the epic's baseline.
+    # Never silently destroy the SRTM DEM: compute_viewsheds.py reads
+    # dem_l93.tif, so we take its name, but the previous file is kept alongside
+    # as the epic's baseline.
     # An existing backup is never overwritten: on a second run that would
     # replace the original SRTM DEM with a Lidar HD one.
     if os.path.exists(output_path):

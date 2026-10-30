@@ -384,7 +384,7 @@ def main():
     paths = viewshed_index(config["regions"])
     if not paths:
         raise SystemExit(f"❌ no viewshed under data/{{{','.join(config['regions'])}}}"
-                         f"/output/viewsheds_geotiff — run main.py first")
+                         f"/output/viewsheds_geotiff — run compute_viewsheds.py first")
 
     if args.list:
         deployed = deployed_sites(config["regions"], paths)
