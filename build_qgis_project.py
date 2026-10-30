@@ -8,7 +8,9 @@ GDAL_DATA — QGIS relies on them.
 
 Layer tree, top to bottom (top = drawn over the others):
 
-    Sites                 every candidate, coloured by access cost
+    Sites                 every candidate, coloured by access cost, then a
+                          « Sites par scénario » subgroup: one points layer
+                          per scenario, named like its coverage raster
     Scénarios             one coverage raster each, named with its metrics
     Zone d'enjeu          the stake, in magenta under the coverage rasters
     Viewsheds individuels split by owner category, hidden and collapsed
@@ -229,6 +231,8 @@ def main():
                   if os.path.basename(f)[len('scenario_'):].startswith(tuple(_wanted))]
         print(f'   scenarios filtered on {_wanted}: '
               f'{", ".join(os.path.basename(f) for f in folders)}')
+    g_scen_sites = g_sites.addGroup('Sites par scénario')
+    missing_points = []
     for index, folder in enumerate(folders):
         label = os.path.basename(folder).replace('scenario_', '')
         meta_path = os.path.join(folder, 'meta.json')
@@ -258,6 +262,22 @@ def main():
                           f"{meta['km2_total_triangule']:.0f} km² triangulés")
         add_raster(os.path.join(folder, 'couverture_zone.tif'), total_name,
                    g_tot, visible=False, opacity=0.75, abstract=abstract)
+
+        # The scenario's own sites, written by scenario_layers.py next to its
+        # rasters. Folders built before that have none: rerun the scenarios.
+        points_path = os.path.join(folder, 'sites.gpkg')
+        if not os.path.exists(points_path):
+            missing_points.append(label)
+            continue
+        points = QgsVectorLayer(f'{points_path}|layername=sites', name, 'ogr')
+        if points.isValid():
+            style_sites(points)
+            project.addMapLayer(points, False)
+            g_scen_sites.addLayer(points).setItemVisibilityChecked(index == 0)
+    if missing_points:
+        print(f'   ⚠️  no sites.gpkg for {", ".join(missing_points)} — rerun '
+              f'scenario_layers.py to get one points layer per scenario')
+    g_scen_sites.setExpanded(False)
 
     # --- Zone d'enjeu ----------------------------------------------------
     # Magenta fill, under the coverage rasters: toggling a scenario off shows
