@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 from pathlib import Path
 import pandas as pd
@@ -36,6 +37,13 @@ def download_dem_eio(bbox, out_path="srtm_dem.tif", product="SRTM1"):
     Downloads a clipped SRTM DEM using eio CLI tool for the specified bbox.
     Requires `eio` installed and working (via `elevation` package).
     """
+    if not shutil.which("gdal_translate"):
+        raise EnvironmentError(
+            "gdal_translate not found on PATH.\n"
+            "  macOS:          brew install gdal\n"
+            "  Ubuntu/Debian:  sudo apt-get install gdal-bin\n"
+            "  conda:          conda install -c conda-forge gdal"
+        )
     cmd = [
         "eio", "--product", product, "clip",
         "--bounds", *map(str, bbox),

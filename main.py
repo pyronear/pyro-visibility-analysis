@@ -1,27 +1,21 @@
-from analysis_shape.area_analysis import covered_surface
-from analysis_shape.utils import display_tif, normalize_create, create_template, write_data, add_osm_background
-from analysis_shape.viewshed import viewsheds_create
+# === Paths Setup ===
+# Must come before importing anything from analysis_shape: the repo is not an
+# installed package, so its directory has to be on sys.path first.
+#
+# `__file__` is undefined when the script is pasted into the QGIS Python Console
+# or run with exec(Path(...).read_text()) — only the console's "open script"
+# button defines it. Fall back to the saved project's directory, which is why the
+# project must live inside the repo.
+import importlib
+import os
+import sys
+from pathlib import Path
+
 from qgis.core import (
     QgsProject,
     QgsCoordinateReferenceSystem
 )
-from pathlib import Path
-import os
-import csv
-import importlib
 
-# # === Force reload of local modules for debugging ===
-# import analysis_shape.area_analysis
-# import analysis_shape.utils
-# import analysis_shape.viewshed
-# importlib.reload(analysis_shape.area_analysis)
-# importlib.reload(analysis_shape.utils)
-# importlib.reload(analysis_shape.viewshed)
-
-
-# === Paths Setup ===
-# __file__ isn't defined when the script is run from the QGIS Python
-# Console, so fall back to the saved project's directory.
 try:
     VISILITY_ANALYSIS_PATH = Path(__file__).resolve().parent
 except NameError:
@@ -33,7 +27,46 @@ except NameError:
         )
     VISILITY_ANALYSIS_PATH = Path(project_file).resolve().parent
 
-from config import REGION  # set the region in config.py
+if str(VISILITY_ANALYSIS_PATH) not in sys.path:
+    sys.path.insert(0, str(VISILITY_ANALYSIS_PATH))
+
+import csv  # noqa: E402
+
+# The QGIS Python console keeps modules cached between runs, so editing anything
+# under analysis_shape/ and re-running would silently execute the old version.
+# Reload before binding the names: reloading a module does not rebind names
+# already imported from it, so the order here is what makes the refresh real.
+# Dependencies first — viewshed holds references into terrain and utils.
+import analysis_shape.names  # noqa: E402
+import analysis_shape.terrain  # noqa: E402
+import analysis_shape.area_analysis  # noqa: E402
+import analysis_shape.utils  # noqa: E402
+import analysis_shape.viewshed  # noqa: E402
+
+for _module in (analysis_shape.names, analysis_shape.terrain, analysis_shape.area_analysis,
+                analysis_shape.utils, analysis_shape.viewshed):
+    importlib.reload(_module)
+
+from analysis_shape.area_analysis import covered_surface  # noqa: E402
+from analysis_shape.utils import (  # noqa: E402
+    display_tif, normalize_create, create_template, write_data,
+    add_osm_background,
+)
+from analysis_shape.viewshed import viewsheds_create  # noqa: E402
+
+# The QGIS Python console keeps modules cached between runs, so editing
+# config.py and re-running this script would silently reuse the previous
+# REGION — and write the results into the wrong folder. Force a fresh read.
+# `importlib.reload(config)` is not enough: it needs sys.path, which the
+# console may have lost, and then raises « spec not found for the module
+# 'config' » even though `import config` succeeds from the cache — on the old
+# region. See analysis_shape/config_loader.py.
+import analysis_shape.config_loader  # noqa: E402
+importlib.reload(analysis_shape.config_loader)
+config = analysis_shape.config_loader.load_config()
+REGION = config.REGION
+print(f"▶ REGION = {REGION}")
+
 CSV_PATH = os.path.join(VISILITY_ANALYSIS_PATH, "data", REGION, "sites.csv")
 OUTPUT_DIR = os.path.join(os.path.dirname(CSV_PATH), "output")
 
