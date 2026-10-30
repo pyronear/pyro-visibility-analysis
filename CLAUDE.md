@@ -45,7 +45,8 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | script | where | role |
 |---|---|---|
 | `resolve_points_hauts.py` | terminal | partner spreadsheet (communes/addresses) → `sites.csv` |
-| `find_anfr_candidates.py` | terminal | new high points from the ANFR register, ranked by blind spot |
+| `find_anfr_candidates.py` | terminal | new high points from the ANFR register, ranked by blind spot; `--around-zone`: every support in range of one zone |
+| `fetch_zone.py` | terminal | a zone of interest (public forest…) from the IGN WFS → `zones/<name>.gpkg` |
 | `audit_sites.py` | terminal | check declared heights against Lidar HD MNT/MNS |
 | `experiments/generate_dem_fr.py` | terminal | Lidar HD surface model over WMS |
 | `experiments/fill_dem_gaps.py` | terminal | fill Lidar HD holes in a surface model |
@@ -93,7 +94,8 @@ make package PROJECT=<project>.qgz               # LIGHT_DEM=50
 **The département has one source**: `"dept"` in `data/<region>/scenarios.json`,
 read by `zones.region_dept()`; `--dept` only overrides it. It is required only
 by the `dept` zone and the ANFR scripts (`resolve_points_hauts.py`,
-`find_anfr_candidates.py`), which fail with a message saying where to set it.
+`find_anfr_candidates.py`, except with `--around-zone`), which fail with a
+message saying where to set it.
 Outside France or with a custom zone (`data/<region>/zones/<name>.gpkg`),
 leave it out. Do not reintroduce a hardcoded default.
 
@@ -306,6 +308,13 @@ list, or a rule (`en_place`, `meilleurs`, `cible_pct`, `tous`) optionally
 restricted to a pool with `regions_candidats`. `scenario_layers.py --figer`
 writes the resolved list next to its rule, so a delivered scenario stops
 moving; an explicit list wins over any rule.
+
+**One small zone: compute every support, don't score them.** For a zone a
+few km wide (a forest), the blind-spot score is useless — every support in
+range scores the whole zone. `find_anfr_candidates.py --around-zone` keeps
+every usable support within the radius of the zone outline, any département,
+and the real viewsheds (about a second each) decide. The zone itself comes
+from `fetch_zone.py` (BD TOPO public forests, by point or ONF identifier).
 
 **Search for high points, don't just validate them.**
 `find_anfr_candidates.py` narrows a département's ANFR supports in one pass:

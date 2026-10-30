@@ -147,6 +147,14 @@ def _zone_gdf(region, name, dept):
     return gpd.read_file(path)
 
 
+def zone_geometry(region, name, dept=None):
+    """Zone `name` as one Lambert-93 geometry, for distance tests on the polygons."""
+    gdf = _zone_gdf(region, name, region_dept(region, dept))
+    if gdf.empty:
+        raise SystemExit(f"❌ zone « {name} » is empty")
+    return gdf.to_crs("EPSG:2154").geometry.union_all()
+
+
 def load_zone(region, name, reference_path, dept=None):
     """Rasterise zone `name` onto the grid of `reference_path`."""
     with rasterio.open(reference_path) as src:

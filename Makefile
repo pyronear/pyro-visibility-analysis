@@ -16,20 +16,28 @@ PICKS   ?= 10
 FREEZE  ?=
 PROJECT ?=
 LIGHT_DEM ?= 50
+NAME    ?=
+POINT   ?=
+ONF     ?=
 
 R := $(if $(REGION),--region $(REGION))
 
 .DEFAULT_GOAL := help
-.PHONY: help gdal-check audit dem viewsheds summary prioritise scenarios \
+.PHONY: help gdal-check zone audit dem viewsheds summary prioritise scenarios \
         scenarios-md package analyse
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*## "} {printf "  make %-13s %s\n", $$1, $$2}'
 	@echo "  Variables: REGION=<region> ZONES=$(ZONES) PICKS=$(PICKS) FREEZE=1 PROJECT=<x>.qgz"
+	@echo "             NAME=<zone> POINT=<lat>,<lon> ONF=<id> (make zone)"
 
 gdal-check: ## Check gdal_viewshed (pulls the Docker image the first time)
 	@$(PY) -m analysis_shape.gdal_viewshed
+
+zone: ## Fetch a zone of interest (NAME=<zone>, POINT=<lat>,<lon> or ONF=<id>)
+	@test -n "$(NAME)" || { echo "❌ NAME=<zone> is required"; exit 1; }
+	$(PY) fetch_zone.py $(R) --name $(NAME) $(if $(POINT),--point $(POINT)) $(if $(ONF),--onf $(ONF))
 
 audit: ## Check declared site heights against Lidar HD
 	$(PY) audit_sites.py $(R)

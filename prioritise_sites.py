@@ -168,13 +168,14 @@ def main():
         header += f" {zone.name[:7]:>7} {'%':>6}"
     header += f" {'nouveau':>8} {'nouv ' + objectif.name[:4]:>9}"
     print(header)
-    for row in candidates.itertuples():
-        line = (f"{row.site:<{width}} {row.categorie:>10} "
-                f"{getattr(row, 'km2'):>7.0f}")
+    # Dicts, not itertuples(): a zone name with a '-' is no attribute name.
+    for row in candidates.to_dict("records"):
+        line = (f"{row['site']:<{width}} {row['categorie']:>10} "
+                f"{row['km2']:>7.0f}")
         for zone in zones:
-            line += (f" {getattr(row, f'km2_{zone.name}'):>7.0f}"
-                     f" {getattr(row, f'pct_{zone.name}'):>5.1f}%")
-        line += (f" {row.new_km2:>8.0f} {getattr(row, obj_new):>9.0f}")
+            line += (f" {row[f'km2_{zone.name}']:>7.0f}"
+                     f" {row[f'pct_{zone.name}']:>5.1f}%")
+        line += (f" {row['new_km2']:>8.0f} {row[obj_new]:>9.0f}")
         print(line)
 
     objectif_km2 = objectif.reference_km2
