@@ -100,13 +100,15 @@ def scenario_paths(spec, paths):
 
     A name with a different viewshed in `paths` and in the pool is refused: the
     greedy scores the pool's, the deployed baseline reads `paths`', and no single
-    lookup can give each step the raster it used.
+    lookup can give each step the raster it used. The same file reached through a
+    symlinked folder or file is not a different viewshed.
     """
     if not spec.get("regions_candidats"):
         return paths
     lookup = dict(paths)
     for name, path in viewshed_index(spec["regions_candidats"]).items():
-        if lookup.setdefault(name, path) != path:
+        known = lookup.setdefault(name, path)
+        if known != path and not os.path.samefile(known, path):
             raise SystemExit(
                 f"❌ « {name} » has a viewshed in « regions » and another one in "
                 f"« regions_candidats »:\n   {lookup[name]}\n   {path}\n"
