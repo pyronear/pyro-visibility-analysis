@@ -85,9 +85,9 @@ Append its rows to `sites.csv` — or, to compare « the partner's list » with
 scenario's `regions_candidats`. Then audit them and rerun
 `compute_viewsheds.py`: only the new viewsheds are computed — unless a new
 site's detection disc leaves the DEM, which was framed on the sites known when
-it was downloaded. `compute_viewsheds.py` then refuses it: regenerate the DEM
-(`generate_dem_fr.py`) and delete `output/`, since every viewshed must share
-the new grid.
+it was downloaded. `compute_viewsheds.py` then warns and computes it clipped;
+for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
+`output/`, since every viewshed must share the new grid.
 
 **Useful options:** `--anfr`, `--refs` (ANFR files), `--top`, `--ecart`
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid
@@ -205,6 +205,10 @@ For each site of `sites.csv`, not yet on disk:
 
 Then `output/output.csv` (area per site, share of the union) and the union,
 `output/fusion/fusion_or_all_sites.tif`.
+
+Before anything runs it names the sites whose detection disc leaves the DEM
+(computed anyway, clipped), and refuses a site standing on a nodata cell and
+two rows with the same name.
 
 It records radius, target height, curvature and engine in `output/run.json`
 and **refuses to start** if they differ from `config.py` while viewsheds are on

@@ -31,7 +31,7 @@ from rasterio.windows import Window
 
 from analysis_shape.area_analysis import BINARY_PROFILE
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 GDAL_IMAGE = "ghcr.io/osgeo/gdal:ubuntu-small-3.13.3"
 MIN_GDAL_VERSION = (3, 13)
@@ -97,10 +97,11 @@ def gdal_viewshed_command():
     name = f"pyro-gdal-{os.getpid()}"
     # Files written in the container belong to the user, not to root.
     user = ["--user", f"{os.getuid()}:{os.getgid()}"] if hasattr(os, "getuid") else []
-    subprocess.run(["docker", "run", "-d", "--rm", "--name", name, *user,
-                    "-v", f"{ROOT}:{ROOT}", GDAL_IMAGE, "sleep", "infinity"],
-                   check=True, capture_output=True)
     try:
+        # Inside the try: a Ctrl-C during the start must still remove it.
+        subprocess.run(["docker", "run", "-d", "--rm", "--name", name, *user,
+                        "-v", f"{ROOT}:{ROOT}", GDAL_IMAGE, "sleep", "infinity"],
+                       check=True, capture_output=True)
         prefix = ["docker", "exec", name, "gdal_viewshed"]
         yield prefix, _gdal_version(prefix)
     finally:
@@ -191,7 +192,14 @@ def check_run_metadata(output_dir, viewsheds_dir, envelope):
         try:
             with open(path, encoding="utf-8") as handle:
                 previous = json.load(handle)
-        except (ValueError, OSError):
+        except (ValueError, OSError) as exc:
+            if existing:
+                # Unreadable is not « unknown »: the rasters next to it were
+                # computed with some setting, and trusting the current one
+                # would reuse them blindly.
+                raise SystemExit(f"❌ {path} is unreadable ({exc}) next to "
+                                 f"{len(existing)} viewsheds. Delete "
+                                 f"{output_dir}/ and rerun.")
             previous = None
         if previous is not None and "engine" not in previous:
             previous = {**previous, "engine": LEGACY_ENVELOPE["engine"]}
@@ -217,8 +225,9 @@ def check_run_metadata(output_dir, viewsheds_dir, envelope):
 
     if previous and previous.get("gdal_version") and "gdal_version" not in envelope:
         envelope = {**envelope, "gdal_version": previous["gdal_version"]}
-    with open(path, "w", encoding="utf-8") as handle:
+    with open(f"{path}.part", "w", encoding="utf-8") as handle:
         json.dump(envelope, handle, indent=2)
+    os.replace(f"{path}.part", path)
 
 
 if __name__ == "__main__":

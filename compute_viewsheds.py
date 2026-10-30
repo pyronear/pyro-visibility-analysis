@@ -26,7 +26,6 @@ Usage:
 import argparse
 import csv
 import os
-import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -43,19 +42,12 @@ from analysis_shape.gdal_viewshed import (  # noqa: E402
     ENGINE, check_run_metadata, compute_viewshed, curvature_coefficient,
     gdal_viewshed_command,
 )
-from analysis_shape.terrain import load_cache, observer_height  # noqa: E402
+from analysis_shape.names import site_name  # noqa: E402
+from analysis_shape.terrain import (  # noqa: E402
+    check_dem_extent, load_cache, observer_height, sample_raster,
+)
 
 DEFAULT_HEIGHT = 30  # in meters, above bare ground (not an NGF altitude)
-
-
-def clean_name(name):
-    """The site name as a file name.
-
-    ANFR/BD TOPO addresses sometimes carry a character illegal in a path ('/'
-    in a motorway address such as « A6 >Paris/Aire de Service », a direction
-    of travel with '>'…). A '/' turns the name into a missing subfolder.
-    """
-    return re.sub(r'[/\\:*?"<>|]', '-', name)
 
 
 def write_output_csv(path, surfaces):
@@ -108,17 +100,36 @@ def main():
     with open(csv_path, newline="", encoding="utf-8") as handle:
         sites = list(csv.DictReader(handle, delimiter=";"))
 
+    # gdal_viewshed treats the outside of the raster as empty space and clips
+    # a site near the edge silently. Computed anyway, but said.
+    try:
+        check_dem_extent(dem_path, ((site_name(r["Name"]), float(r["Longitude"]),
+                                     float(r["Latitude"])) for r in sites), radius)
+    except RuntimeError as exc:
+        print(f"   ⚠️  {exc}")
+
     # Observer heights first, one site at a time: they may query the IGN MNT
     # and they share one cache file.
     to_l93 = Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True)
     ground_cache = load_cache(csv_path)
     jobs = []
+    seen = set()
     for row in sites:
-        name = clean_name(row["Name"])
+        name = site_name(row["Name"])
+        # Two rows with the same cleaned name would be two parallel jobs
+        # writing the same file.
+        if name in seen:
+            raise SystemExit(f"❌ duplicate site name in {csv_path}: {name}")
+        seen.add(name)
+        x, y = to_l93.transform(float(row["Longitude"]), float(row["Latitude"]))
+        # Before the skip: a mask computed from a hole must not be kept either.
+        if sample_raster(dem_path, x, y) is None:
+            raise SystemExit(f"❌ {name}: the DEM has no data at the site. "
+                             f"Fill the hole (experiments/fill_dem_gaps.py) or "
+                             f"check the coordinates.")
         output_file = os.path.join(viewsheds_dir, f"viewshed_{name}.tif")
         if os.path.exists(output_file):
             continue
-        x, y = to_l93.transform(float(row["Longitude"]), float(row["Latitude"]))
         height = float(row["Height"]) if row["Height"] else DEFAULT_HEIGHT
         obs = observer_height(row["Name"], x, y, height, dem_path, csv_path,
                               ground_cache)
@@ -142,8 +153,14 @@ def main():
 
             start = time.perf_counter()
             with ThreadPoolExecutor(max_workers=args.workers) as pool:
-                for i, name in enumerate(pool.map(work, jobs), skipped + 1):
-                    print(f"[{i}/{len(sites)}] {name}")
+                try:
+                    for i, name in enumerate(pool.map(work, jobs), skipped + 1):
+                        print(f"[{i}/{len(sites)}] {name}")
+                except BaseException:
+                    # Otherwise the `with` waits for every queued site; the
+                    # running ones die with the container.
+                    pool.shutdown(wait=False, cancel_futures=True)
+                    raise
             print(f"   {len(jobs)} viewsheds in {time.perf_counter() - start:.0f} s")
 
     surfaces = covered_surface(viewsheds_dir, fusion_dir, csv_path)

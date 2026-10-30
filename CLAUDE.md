@@ -169,8 +169,9 @@ A script that reads `Name` any other way loses such sites silently.
 **Sites appended after the DEM.** The DEM is framed on `sites.csv` at
 download time. A site added later (ANFR candidates) can sit near its edge and
 get a clipped viewshed: `gdal_viewshed` assumes empty space outside the raster
-and never complains. `terrain.check_dem_extent()` refuses it before the first
-viewshed; the answer is a new DEM and an empty `output/`.
+and never complains. `terrain.check_dem_extent()` names such sites before the
+first viewshed; they are computed anyway, clipped. For full discs: a new DEM
+and an empty `output/`.
 
 **`unary_union` on vectorised viewsheds.** `shapes()` returns disjoint parts;
 the union was useless and took hours on ~90 000 polygons. `MultiPolygon` is

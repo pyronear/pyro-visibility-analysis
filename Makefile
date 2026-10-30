@@ -56,4 +56,5 @@ package: ## Deliverable zip of PROJECT, with a light DEM (LIGHT_DEM metres)
 	@test -n "$(PROJECT)" || { echo "❌ PROJECT=<project>.qgz is required"; exit 1; }
 	$(PY) package_project.py $(PROJECT) --light-dem $(LIGHT_DEM)
 
-analyse: viewsheds summary prioritise scenarios ## viewsheds → summary → prioritise → scenarios
+analyse: ## viewsheds → summary → prioritise → scenarios
+	$(MAKE) viewsheds && $(MAKE) summary && $(MAKE) prioritise && $(MAKE) scenarios
