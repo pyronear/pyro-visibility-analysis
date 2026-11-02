@@ -366,7 +366,9 @@ def select(candidates, top, max_operateurs):
 def write_candidates(shortlist, region):
     out = REPO / "data" / region / "candidats.csv"
     with out.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle, delimiter=";")
+        # « \n » like sites.csv: the csv module's default « \r\n » survived an
+        # append to sites.csv as a stray « \r », read back as an empty row.
+        writer = csv.writer(handle, delimiter=";", lineterminator="\n")
         writer.writerow(["Name", "Latitude", "Longitude", "Owner", "Height"])
         for support in shortlist:
             # A motorway address sometimes carries a '/' (« A6 >Paris/Aire de
