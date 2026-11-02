@@ -46,7 +46,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 |---|---|---|
 | `resolve_points_hauts.py` | terminal | partner spreadsheet (communes/addresses) → `sites.csv` |
 | `find_anfr_candidates.py` | terminal | new high points from the ANFR register, ranked by blind spot; `--around-zone`: every support in range of one zone |
-| `fetch_zone.py` | terminal | a zone of interest (public forest…) from the IGN WFS → `zones/<name>.gpkg` |
+| `fetch_zone.py` | terminal | a zone of interest (one forest, a département's state forests, the OLD) from the IGN WFS → `zones/<name>.gpkg` |
 | `audit_sites.py` | terminal | check declared heights against Lidar HD MNT/MNS |
 | `experiments/generate_dem_fr.py` | terminal | Lidar HD surface model over WMS |
 | `experiments/fill_dem_gaps.py` | terminal | fill Lidar HD holes in a surface model |
@@ -278,9 +278,12 @@ cameras on the same ground) once the zone is already in range.
 
 **Zones of interest, not raw area.** Raw km² ranks candidates very
 differently from km² of what matters. `zones.py` rasterises a named zone onto
-a viewshed grid: `old` (brush-clearing obligation zones, WFS
-`DEBROUSSAILLEMENT:debroussaillement`), `dept` (département outline, cached),
-or any `data/<region>/zones/<name>.gpkg`. Without OLD, the zone is the
+a viewshed grid: `dept` (département outline, cached) or any
+`data/<region>/zones/<name>.gpkg`. `fetch_zone.py` writes those from named
+WFS sources — `old` (brush-clearing obligation zones,
+`DEBROUSSAILLEMENT:debroussaillement`), `forets-domaniales`, one forest —
+clipped to the département outline with `--dept`; older regions keep their
+OLD in `old_debroussaillement.gpkg`, still read. Without OLD, the zone is the
 département: much of what cameras see can fall in neighbouring ones.
 ⚠️ A zone percentage's denominator is measured on the **polygons**, never on
 the mask (which only covers the DEM extent). The OLD WFS returns whole
