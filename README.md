@@ -30,10 +30,10 @@ paths that QGIS depends on.
 3. **QGIS** — to open and assemble the final project (step 8). No plugin
    needed.
 4. **Only to build or extend a site list from public data** — the ANFR
-   register, from data.gouv.fr, dataset « Données sur les installations
-   radioélectriques de plus de 5 watts »: `SUP_SUPPORT.geojson` and the
-   reference tables (`SUP_NATURE.txt`, `SUP_PROPRIETAIRE.txt`). The scripts
-   look for them in `~/Downloads/` by default.
+   register of radio supports, published monthly on data.gouv.fr: `make anfr`
+   downloads the latest one into `data/anfr/<date>/`, where the scripts read
+   it. Run it again before each new study: who owns a pylon changes as tower
+   companies buy operators' pylons, and a stale export files them as public.
 
 ---
 
@@ -229,8 +229,11 @@ make scenarios  REGION=<region>
 ```
 
 `data/<region>/scenarios.json` names the zone and sorts the owners, which
-`find_candidates.py` writes as `PUBLIC …` or `OPERATEUR …` (water towers from
-BD TOPO, which gives no owner, as `PUBLIC`). No `"dept"`:
+`find_candidates.py` writes as `PUBLIC …` (public bodies), `RESEAU …` (SNCF,
+RTE, EDF…) or `PRIVE …` (tower companies, telecom operators, private owners);
+water towers from BD TOPO, which gives no owner, as `PUBLIC`. `public` and
+`reseau` are free in a capped scenario, so `max_operateurs` caps the private
+sites only. No `"dept"`:
 
 ```json
 {
@@ -238,7 +241,7 @@ BD TOPO, which gives no owner, as `PUBLIC`). No `"dept"`:
   "zone": "<zone>",
   "zone_libelle": "<label shown in QGIS>",
   "critere": "couverture",
-  "gestionnaires": {"defaut": "operateur", "public": ["PUBLIC"], "operateur": ["OPERATEUR"]},
+  "gestionnaires": {"defaut": "prive", "public": ["PUBLIC"], "reseau": ["RESEAU"], "prive": ["PRIVE", "OPERATEUR"]},
   "scenarios": {
     "00-tous":            {"tous": true},
     "01-publics":         {"cible_pct": 100, "max_operateurs": 0},
@@ -256,7 +259,7 @@ BD TOPO, which gives no owner, as `PUBLIC`). No `"dept"`:
 |---|---|---|
 | `--hauteur-min` | 30 m | 10 m keeps short masts on a ridge, often better placed than a tall pylon in the plain |
 | `--radius` | `VIEWSHED_RADIUS_M` | to search wider or narrower than the detection radius |
-| `--publics-seulement`, `--max-operateurs N` | off | to leave paid operator sites out of the list itself, rather than in a scenario |
+| `--publics-seulement`, `--max-operateurs N` | off | to leave private (paid) sites out of the list itself, rather than in a scenario |
 | `--top N`, `--ecart M` | all, none | only if the list gets too long to compute |
 | `--sources anfr` | both | to leave BD TOPO water towers out |
 | `--onf` / `--layer` (`fetch_zone.py`) | — | reproducible zone; a polygon layer other than public forests |

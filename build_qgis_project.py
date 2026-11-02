@@ -98,10 +98,12 @@ if os.path.exists(_run):
           f"target {_p.get('target_height_m')} m")
 
 # One colour per access-cost category. Blue reads as "already there", green as
-# free, amber as a convention to negotiate, red as a recurring bill.
+# free, violet as free too but a network operator's, amber as a convention to
+# negotiate, red as a recurring bill.
 SITE_COLORS = {
     'en place': '#2b6cb0',
     'public': '#2a9d4a',
+    'reseau': '#7b61c4',
     'delegataire': '#e08a1e',
     'operateur': '#d64545',
     'prive': '#d64545',
@@ -110,6 +112,7 @@ SITE_COLORS = {
 GROUP_LABELS = {
     'en place': 'Caméras en place',
     'public': 'Sites publics',
+    'reseau': 'Sites gestionnaires de réseau',
     'delegataire': 'Sites délégataires',
     'operateur': 'Sites opérateurs',
     'prive': 'Sites privés',

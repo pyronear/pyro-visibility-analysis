@@ -55,6 +55,12 @@ def _gain(counts, extra, zone, criterion):
     return int((after & (before < threshold) & zone[window]).sum())
 
 
+# Categories that cost nothing to the cap: public bodies, and network
+# operators (SNCF, RTE, EDF…), negotiated like them. Anything else — a tower
+# company, a delegate, a private owner — counts against `max_operateurs`.
+FREE_CATEGORIES = ("public", "reseau")
+
+
 def greedy_pick(candidates, zone_mask, baseline_masks=(), picks=None,
                 criterion="couverture", target_cells=None, on_pick=None,
                 categories=None, max_operateurs=None):
@@ -73,9 +79,10 @@ def greedy_pick(candidates, zone_mask, baseline_masks=(), picks=None,
     boolean union, because triangulation needs to know the difference between
     one camera and two.
 
-    `categories` (name → "public"/"operateur"/…) and `max_operateurs` cap the
-    access cost of the result: once that many non-public sites are chosen,
-    every later step is restricted to public candidates only, instead of
+    `categories` (name → "public"/"reseau"/"operateur"/…) and `max_operateurs`
+    cap the access cost of the result: once that many paid sites (any category
+    outside FREE_CATEGORIES) are chosen, every later step is restricted to
+    free candidates only, instead of
     picking the single best site regardless of who owns it. On a test département,
     an uncapped top 30 took 28 operator sites and 2 public — the best individual
     points are almost all private, so without this the "free" and "capped"
@@ -111,7 +118,8 @@ def greedy_pick(candidates, zone_mask, baseline_masks=(), picks=None,
         cap_hit = max_operateurs is not None and n_operateurs >= max_operateurs
         best, best_key = None, (0, 0)
         for name, mask in remaining.items():
-            if cap_hit and categories is not None and categories.get(name) != "public":
+            if (cap_hit and categories is not None
+                    and categories.get(name) not in FREE_CATEGORIES):
                 continue
             gain = _gain(counts, mask, zone_mask, criterion)
             # With no baseline, no single camera triangulates anything: every
@@ -127,7 +135,7 @@ def greedy_pick(candidates, zone_mask, baseline_masks=(), picks=None,
             break  # nothing left adds anything — stop rather than pad the list
         best_gain = best_key[0]
         picked = remaining.pop(best)
-        if categories is not None and categories.get(best) != "public":
+        if categories is not None and categories.get(best) not in FREE_CATEGORIES:
             n_operateurs += 1
         counts[picked.rows, picked.cols] += picked.data
         reached = reached_now()

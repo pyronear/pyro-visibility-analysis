@@ -25,7 +25,7 @@ DEPT    ?=
 R := $(if $(REGION),--region $(REGION))
 
 .DEFAULT_GOAL := help
-.PHONY: help gdal-check zone audit dem viewsheds summary prioritise scenarios \
+.PHONY: help gdal-check anfr zone audit dem viewsheds summary prioritise scenarios \
         scenarios-md package analyse
 
 help: ## List the targets
@@ -38,6 +38,9 @@ gdal-check: ## Check gdal_viewshed (pulls the Docker image the first time)
 	@$(PY) -m analysis_shape.gdal_viewshed
 
 # Without POINT or ONF, the whole département: DEPT, else scenarios.json's.
+anfr: ## Download the latest ANFR register into data/anfr/<date>/
+	$(PY) fetch_anfr.py
+
 zone: ## Fetch a zone of interest (NAME=<zone>; POINT, ONF or the département; SOURCE)
 	@test -n "$(NAME)" || { echo "❌ NAME=<zone> is required"; exit 1; }
 	$(PY) fetch_zone.py $(R) --name $(NAME) $(if $(SOURCE),--source $(SOURCE)) \
