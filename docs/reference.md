@@ -122,21 +122,35 @@ summit, which may see the zone better than a tall pylon in the plain — try
 
 ### `fetch_zone.py` — a zone of interest from the IGN WFS
 
-**When:** the zone of interest is one named public polygon — typically a
-forest — rather than the OLD or the département.
+**When:** the zone of interest is not the département: one forest, every
+state forest of the département, the OLD.
 
 Writes `data/<region>/zones/<name>.gpkg` (Lambert-93, layer `zone`, source
-attributes kept) from BD TOPO's public forests (`BDTOPO_V3:foret_publique`:
-every ONF-managed forest — domaniale, communale, départementale — with its
-toponym and ONF identifier; private forests are not in it).
+attributes kept) from a named source of the IGN WFS:
+
+| `--source` | layer | kept |
+|---|---|---|
+| `forets-publiques` (default) | `BDTOPO_V3:foret_publique` | every ONF-managed forest — domaniale, communale, départementale — with its toponym and ONF identifier; private forests are not in it |
+| `forets-domaniales` | `BDTOPO_V3:foret_publique` | `nature = Forêt domaniale` only |
+| `old` | `DEBROUSSAILLEMENT:debroussaillement` | brush-clearing obligation zones |
 
 ```bash
 uv run python fetch_zone.py --region <region> --name <zone> --point <lat>,<lon>
 uv run python fetch_zone.py --region <region> --name <zone> --onf F12345X
+uv run python fetch_zone.py --region <region> --name forets-domaniales \
+    --source forets-domaniales --dept
+uv run python fetch_zone.py --region <region> --name old --source old --dept
 ```
 
 `--point` takes the polygon(s) containing the point; `--onf` the forest with
-that ONF identifier (`identifiants_sources`), stable across BD TOPO editions.
+that ONF identifier (`identifiants_sources`), stable across BD TOPO editions;
+`--dept` every polygon of the source in the département (`--dept <NN>`, or
+alone for `"dept"` in `scenarios.json`), **clipped to its outline**: a forest
+across the border counts for its part in the département, as in the `dept`
+zone. The script lists each forest with its area and ONF identifier, and the
+total — check them before going further. A zone named `old` replaces the
+former `data/<region>/old_debroussaillement.gpkg`, which is still read in a
+region that has no `zones/old.gpkg`.
 
 **Finding the ONF identifier.** Run `--point` first, with a coordinate read
 on any map: the script prints each polygon's toponym, area and `--onf`
@@ -154,12 +168,13 @@ with *Identify Features*: `toponyme` and `identifiants_sources`
 (`ONF:F12345X`). The « Forêts publiques » layer of cartes.gouv.fr shows the
 forests, but its information panel may not give the identifier.
 
-With `--layer`, `--point` works on any polygon layer of the same WFS. Several
-polygons make a zone that is their union; the script says so. Then set
+With `--layer`, `--point` and `--dept` work on any polygon layer of the same
+WFS. Several polygons make a zone that is their union. Then set
 `"zone": "<zone>"` and `"zone_libelle"` in `scenarios.json`, and pass
 `--zones <zone>` (`ZONES=<zone>` with make) to `summary.py` and
-`prioritise_sites.py`. Also `make zone REGION=<region> NAME=<zone>
-POINT=<lat>,<lon>` (or `ONF=<id>`).
+`prioritise_sites.py`. Also `make zone REGION=<region> NAME=<zone>` with
+`POINT=<lat>,<lon>`, `ONF=<id>`, or neither for the département (`DEPT=<NN>`
+to override `scenarios.json`), and `SOURCE=<source>`.
 
 ### `audit_sites.py` — check the heights
 
@@ -316,9 +331,9 @@ uv run python summary.py --region <region> --zones dept
 ```
 
 `--zones`: `dept` (département outline; the code is read from `"dept"` in
-`scenarios.json`, or `--dept`), `old` (brush-clearing
-obligation zones), or any `data/<region>/zones/<name>.gpkg`; several with
-commas. Writes `summary.csv` and `sites_with_coverage.gpkg` (sites as points,
+`scenarios.json`, or `--dept`), `old` (brush-clearing obligation zones, from
+`fetch_zone.py --source old`), or any `data/<region>/zones/<name>.gpkg`;
+several with commas. Writes `summary.csv` and `sites_with_coverage.gpkg` (sites as points,
 to label with `area_km2` in QGIS).
 
 ### `prioritise_sites.py` — marginal contribution
@@ -433,7 +448,7 @@ Under `data/<region>/`:
 | `output/output.csv` | `compute_viewsheds.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
 | `output/summary.csv`, `output/sites_with_coverage.gpkg` | `summary.py` | km² per site and per zone |
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
-| `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest, layer `zone` |
+| `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest (one forest, the state forests, the OLD…), layer `zone` |
 | `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json`, `sites.gpkg` (the scenario's sites as points) |
 
 ---
