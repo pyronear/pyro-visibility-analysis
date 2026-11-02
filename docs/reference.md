@@ -65,21 +65,40 @@ sits below the top.
   antenna masts and overstate water towers.
 - `--anfr` — path to `SUP_SUPPORT.geojson` (optional, used to cross-check).
 
-### `find_anfr_candidates.py` — find new high points
+### `find_candidates.py` — find new high points
 
 **When:** a first analysis exists and you want structures that could cover
 what is still blind. Needs existing viewsheds for the region.
 
-It keeps ANFR supports of a usable kind (water towers, pylons, masts…) at
-least `--hauteur-min` m tall (default 30), drops those near a site already in
-`sites.csv`, and ranks the rest by the uncovered zone area within detection
+Two sources, merged into one list of structures (`--sources`, both by
+default):
+
+- `anfr` — the ANFR register: height, kind and owner, but only supports that
+  carry an antenna;
+- `chateaux-eau` — BD TOPO water towers (`BDTOPO_V3:reservoir`, nature
+  « Château d'eau »), which the register misses when they carry no radio
+  equipment. BD TOPO gives no owner: they are listed as `PUBLIC château d'eau
+  (BD TOPO)` — a commune or a water syndicate, most of the time. Correct the
+  `Owner` by hand when a survey says otherwise.
+
+A water tower with antennas is in both. An ANFR support within `--doublon`
+(default 50 m) of a BD TOPO tower is that tower: one entry is kept, with the
+BD TOPO position and height (the structure, without the antenna mast) and the
+ANFR identifier and owner. On a test département the tower-to-support
+distances fall below 50 m or above 100 m, nothing in between.
+
+Then the same passes for every source: usable kind (water towers, pylons,
+masts…), at least `--hauteur-min` m tall (default 30), away from a site
+already in `sites.csv`, ranked by the uncovered zone area within detection
 range. The score ignores terrain: it sorts, real viewsheds decide.
 
 ```bash
-uv run python find_anfr_candidates.py --region <region> --top 25 --max-operateurs 10
+uv run python find_candidates.py --region <region> --top 25 --max-operateurs 10
+uv run python find_candidates.py --region <region> --sources anfr   # ANFR only
 ```
 
-**Produces:** `data/<region>/candidats_anfr.csv`, in the `sites.csv` format.
+**Produces:** `data/<region>/candidats.csv`, in the `sites.csv` format; names
+start with `ANFR <id>` (also for a merged tower) or `BDTOPO <id>`.
 Append its rows to `sites.csv` — or, to compare « the partner's list » with
 « the list plus ANFR », put them in their own region folder and name it in a
 scenario's `regions_candidats`. Then audit them and rerun
@@ -89,7 +108,8 @@ it was downloaded. `compute_viewsheds.py` then warns and computes it clipped;
 for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
 `output/`, since every viewshed must share the new grid.
 
-**Useful options:** `--anfr`, `--refs` (ANFR files), `--top`, `--ecart`
+**Useful options:** `--sources`, `--doublon`, `--anfr`, `--refs` (ANFR
+files), `--top`, `--ecart`
 (minimum spacing between candidates, m), `--max-operateurs` (cap on paid
 operator supports), `--publics-seulement`.
 
@@ -99,8 +119,9 @@ operator supports), `--publics-seulement`.
 département: « can the existing high points see it? ». The zone comes from
 `data/<region>/zones/<zone>.gpkg` ([`fetch_zone.py`](#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs)).
 
-Every usable support within `--radius` (default `VIEWSHED_RADIUS_M`) of the
-zone **outline** is kept, whatever its département: a zone near a border is
+Every usable support — ANFR or BD TOPO water tower — within `--radius`
+(default `VIEWSHED_RADIUS_M`) of the zone **outline** is kept, whatever its
+département: a zone near a border is
 watched from both sides. There is no blind-spot score — on a zone a few km
 wide every support in range would score the whole zone — and no shortlist:
 viewsheds cost about a second each, so they are all computed and the greedy
@@ -110,13 +131,13 @@ Needs neither a département nor an earlier viewshed: it is the **first** step
 of such a region.
 
 ```bash
-uv run python find_anfr_candidates.py --region <region> --around-zone <zone>
-cp data/<region>/candidats_anfr.csv data/<region>/sites.csv   # empty region
+uv run python find_candidates.py --region <region> --around-zone <zone>
+cp data/<region>/candidats.csv data/<region>/sites.csv   # empty region
 ```
 
 The DEM is then framed on `sites.csv` + radius, as usual. ⚠️ `SUP_NM_HAUT`
 is the support height **including** its antenna mast: the camera would sit
-lower. And `--hauteur-min 30` (the default) leaves out short masts on a
+lower (a merged water tower takes the BD TOPO height, without the mast). And `--hauteur-min 30` (the default) leaves out short masts on a
 summit, which may see the zone better than a tall pylon in the plain — try
 `--hauteur-min 10` too.
 
@@ -351,7 +372,7 @@ pass `--zones dept` where there is no OLD layer. Writes
 
 **The département, in every script**, comes from `"dept"` in
 `data/<region>/scenarios.json`; `--dept` overrides it. It is only needed for
-the `dept` zone and the ANFR scripts (not `find_anfr_candidates.py
+the `dept` zone and the candidate scripts (not `find_candidates.py
 --around-zone`) — outside France, or with a zone of your own
 (`data/<region>/zones/<name>.gpkg`), leave it out.
 
@@ -438,7 +459,7 @@ Under `data/<region>/`:
 | file | written by | content |
 |---|---|---|
 | `resolution.csv` | `resolve_points_hauts.py` | every resolution decision, to review |
-| `candidats_anfr.csv` | `find_anfr_candidates.py` | ANFR shortlist, `sites.csv` format |
+| `candidats.csv` | `find_candidates.py` | shortlist (ANFR + BD TOPO water towers), `sites.csv` format |
 | `dem_l93.tif` | `generate_dem_fr.py` | the DEM `compute_viewsheds.py` reads |
 | `dem_l93_source.tif` | `fill_dem_gaps.py` | origin of each pixel |
 | `ground_elevation.json` | `compute_viewsheds.py` | ground elevation cache per site (`{ground, x, y}`) |

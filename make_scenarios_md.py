@@ -125,7 +125,7 @@ def main():
         ]
         for index, site in enumerate(meta["sites"], 1):
             owner, height, deployed = table.get(site, ("", "", False))
-            # find_anfr_candidates.py prefixes ANFR labels with PUBLIC /
+            # find_candidates.py prefixes ANFR labels with PUBLIC /
             # OPERATEUR; the prefix duplicates the status column, so only the
             # owner is kept.
             clean = str(owner)
