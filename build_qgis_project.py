@@ -8,10 +8,11 @@ GDAL_DATA — QGIS relies on them.
 
 Layer tree, top to bottom (top = drawn over the others):
 
-    Sites                 every candidate, coloured by access cost, then a
-                          « Sites par scénario » subgroup: one points layer
-                          per scenario, named like its coverage raster
-    Scénarios             one coverage raster each, named with its metrics
+    Sites                 every candidate, coloured by access cost
+    Scénarios             one subgroup per scenario, named with its metrics:
+                          its sites, as stars, over its coverage raster.
+                          Ticking a scenario shows both and unticks the
+                          previous one (mutually exclusive group)
     Zone d'enjeu          the stake, in magenta under the coverage rasters
     Viewsheds individuels split by owner category, hidden and collapsed
     Contexte              relief, then OpenStreetMap at the very bottom
@@ -33,7 +34,8 @@ import sys
 
 from qgis.core import (
     QgsProject, QgsRasterLayer, QgsVectorLayer, QgsCoordinateReferenceSystem,
-    QgsCategorizedSymbolRenderer, QgsRendererCategory, QgsSymbol,
+    QgsCategorizedSymbolRenderer, QgsRendererCategory, QgsSymbol, QgsMarkerSymbol,
+    QgsDropShadowEffect, QgsDrawSourceEffect, QgsEffectStack,
     QgsSimpleFillSymbolLayer, QgsHillshadeRenderer, QgsLayerMetadata,
     QgsReferencedRectangle,
 )
@@ -185,12 +187,25 @@ def main():
     # the equivalent, with the `categorie` column.
     present = [v for v in SITE_COLORS if v in set(buckets.values())]
 
-    def style_sites(layer):
+    def style_sites(layer, star=False):
         categories = []
         for value in present or list(SITE_COLORS):
-            symbol = QgsSymbol.defaultSymbol(layer.geometryType())
-            symbol.setColor(QColor(SITE_COLORS[value]))
-            symbol.setSize(3.4)
+            if star:
+                # Larger stars with a drop shadow: they lift off the round
+                # markers of « Sites » and off the coverage rasters, so a
+                # scenario's picks stay readable over both.
+                symbol = QgsMarkerSymbol.createSimple({
+                    'name': 'star', 'color': SITE_COLORS[value],
+                    'outline_color': '#333333', 'outline_width': '0.25',
+                    'size': '9'})
+                effects = QgsEffectStack()
+                effects.appendEffect(QgsDropShadowEffect())
+                effects.appendEffect(QgsDrawSourceEffect())
+                symbol.symbolLayer(0).setPaintEffect(effects)
+            else:
+                symbol = QgsSymbol.defaultSymbol(layer.geometryType())
+                symbol.setColor(QColor(SITE_COLORS[value]))
+                symbol.setSize(3.4)
             categories.append(QgsRendererCategory(
                 value, symbol, GROUP_LABELS.get(value, value)))
         layer.setRenderer(QgsCategorizedSymbolRenderer('categorie', categories))
@@ -231,9 +246,23 @@ def main():
                   if os.path.basename(f)[len('scenario_'):].startswith(tuple(_wanted))]
         print(f'   scenarios filtered on {_wanted}: '
               f'{", ".join(os.path.basename(f) for f in folders)}')
-    g_scen_sites = g_sites.addGroup('Sites par scénario')
+
+    def add_scenario_sites(folder, group):
+        """The scenario's own sites, written by scenario_layers.py."""
+        path = os.path.join(folder, 'sites.gpkg')
+        if not os.path.exists(path):
+            return False
+        points = QgsVectorLayer(f'{path}|layername=sites', 'Sites du scénario',
+                                'ogr')
+        if not points.isValid():
+            return False
+        style_sites(points, star=True)
+        project.addMapLayer(points, False)
+        group.addLayer(points)
+        return True
+
     missing_points = []
-    for index, folder in enumerate(folders):
+    for folder in folders:
         label = os.path.basename(folder).replace('scenario_', '')
         meta_path = os.path.join(folder, 'meta.json')
         name, abstract = label, None
@@ -250,8 +279,6 @@ def main():
         zone_raster = os.path.join(folder, 'couverture_zone_interet.tif')
         if not os.path.exists(zone_raster):
             zone_raster = os.path.join(folder, 'couverture_old.tif')
-        add_raster(zone_raster, name, g_scen,
-                   visible=(index == 0), opacity=0.75, abstract=abstract)
 
         # Same count, without restriction to the zone of interest. Class 0 is
         # declared nodata there, so only the areas seen show up.
@@ -260,24 +287,32 @@ def main():
             total_name = (f"{label} · {meta['n_sites']} sites · "
                           f"{meta['km2_total_couvert']:.0f} km² couverts · "
                           f"{meta['km2_total_triangule']:.0f} km² triangulés")
-        add_raster(os.path.join(folder, 'couverture_zone.tif'), total_name,
-                   g_tot, visible=False, opacity=0.75, abstract=abstract)
 
-        # The scenario's own sites, written by scenario_layers.py next to its
-        # rasters. Folders built before that have none: rerun the scenarios.
-        points_path = os.path.join(folder, 'sites.gpkg')
-        if not os.path.exists(points_path):
-            missing_points.append(label)
-            continue
-        points = QgsVectorLayer(f'{points_path}|layername=sites', name, 'ogr')
-        if points.isValid():
-            style_sites(points)
-            project.addMapLayer(points, False)
-            g_scen_sites.addLayer(points).setItemVisibilityChecked(index == 0)
+        # One subgroup per scenario, its sites over its raster: ticking the
+        # subgroup shows both, so switching scenario no longer means hunting
+        # for its points elsewhere. Each family gets its own points layer,
+        # read from the same sites.gpkg. Folders built before
+        # scenario_layers.py wrote it have none: rerun the scenarios.
+        for group, raster, title in (
+                (g_scen, zone_raster, name),
+                (g_tot, os.path.join(folder, 'couverture_zone.tif'), total_name)):
+            sub = group.addGroup(title)
+            if not add_scenario_sites(folder, sub) and group is g_scen:
+                missing_points.append(label)
+            add_raster(raster, title, sub, visible=True, opacity=0.75,
+                       abstract=abstract)
+            sub.setExpanded(False)
     if missing_points:
         print(f'   ⚠️  no sites.gpkg for {", ".join(missing_points)} — rerun '
               f'scenario_layers.py to get one points layer per scenario')
-    g_scen_sites.setExpanded(False)
+    # One scenario at a time: ticking one unticks the previous one. The first
+    # zone-of-interest scenario starts visible, no total-coverage one.
+    if folders:
+        g_scen.setIsMutuallyExclusive(True, 0)
+    # -1 keeps the first ticked child rather than none: untick them by hand.
+    g_tot.setIsMutuallyExclusive(True, -1)
+    for sub in g_tot.children():
+        sub.setItemVisibilityChecked(False)
 
     # --- Zone d'enjeu ----------------------------------------------------
     # Magenta fill, under the coverage rasters: toggling a scenario off shows

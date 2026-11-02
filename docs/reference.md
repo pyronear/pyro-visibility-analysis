@@ -387,8 +387,10 @@ without editing `config.py`, define `PYRO_REGION = '<region>'` in the console
 before the `exec`; `PYRO_SCENARIOS = ['00', '01']` keeps only the scenarios
 whose name starts with those prefixes.
 
-Each scenario also gets its own points layer, named like its coverage raster,
-in the « Sites par scénario » subgroup of « Sites »: it reads
+Each scenario is a subgroup of the scenario groups, named with its metrics:
+its sites, as stars with a drop shadow, coloured by access cost, over its coverage raster.
+Ticking the subgroup shows both, and the group is mutually exclusive, so
+ticking a scenario unticks the previous one. The sites come from
 `output/scenario_<name>/sites.gpkg`, which scenario folders built before it
 existed lack — rerun `scenario_layers.py` to get them.
 
