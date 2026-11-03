@@ -57,6 +57,8 @@ import rasterio
 from pyproj import Transformer
 from shapely.geometry import shape, Point
 
+from analysis_shape.anfr import latest_export, read_supports, SUPPORTS
+
 from analysis_shape.zones import region_dept
 
 REPO = Path(__file__).resolve().parent
@@ -255,39 +257,33 @@ def load_bdtopo(communes: list) -> dict:
 
 
 def load_anfr(path: Path, dept: str) -> list[dict]:
-    """The etalab export is a geojson with one feature per line: stream it
-    rather than load 77 MB to keep a single département."""
+    """The export, streamed (analysis_shape/anfr.py) rather than loaded whole
+    to keep a single département."""
     out, seen = [], set()
-    with path.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip().rstrip(",")
-            if not line.startswith('{ "type": "Feature"'):
-                continue
-            f = json.loads(line)
-            p = f["properties"]
-            # The export drops the leading zero of INSEE codes: a 02xxx code
-            # arrives as 2xxx, which `startswith("21")` assigns to the 21.
-            # Pad both sides before comparing; Corsica (« 2A004 ») already has
-            # five characters and is left untouched.
-            code = str(p.get("COM_CD_INSEE") or "").strip()
-            if not code or not code.zfill(5).startswith(str(dept).strip().zfill(2)):
-                continue
-            lon, lat = f["geometry"]["coordinates"]
-            # Several stations share one support: keep a single entry.
-            key = (round(lat, 5), round(lon, 5), p.get("SUP_NM_HAUT"))
-            if key in seen:
-                continue
-            seen.add(key)
-            x, y = to_l93(lon, lat)
-            adr = " ".join(str(p[k]) for k in
-                           ("ADR_LB_LIEU", "ADR_LB_ADD1", "ADR_LB_ADD2", "ADR_LB_ADD3")
-                           if p.get(k))
-            out.append({
-                "x": x, "y": y, "lon": lon, "lat": lat,
-                "hauteur": p.get("SUP_NM_HAUT"), "nat_id": str(p.get("NAT_ID")),
-                "insee": str(p.get("COM_CD_INSEE")), "adresse": adr,
-                "sup_id": p.get("SUP_ID"),
-            })
+    for p in read_supports(path):
+        # The export drops the leading zero of INSEE codes: a 02xxx code
+        # arrives as 2xxx, which `startswith("21")` assigns to the 21.
+        # Pad both sides before comparing; Corsica (« 2A004 ») already has
+        # five characters and is left untouched.
+        code = str(p.get("COM_CD_INSEE") or "").strip()
+        if not code or not code.zfill(5).startswith(str(dept).strip().zfill(2)):
+            continue
+        lon, lat = p["lon"], p["lat"]
+        # Several stations share one support: keep a single entry.
+        key = (round(lat, 5), round(lon, 5), p.get("SUP_NM_HAUT"))
+        if key in seen:
+            continue
+        seen.add(key)
+        x, y = to_l93(lon, lat)
+        adr = " ".join(str(p[k]) for k in
+                       ("ADR_LB_LIEU", "ADR_LB_ADD1", "ADR_LB_ADD2", "ADR_LB_ADD3")
+                       if p.get(k))
+        out.append({
+            "x": x, "y": y, "lon": lon, "lat": lat,
+            "hauteur": p.get("SUP_NM_HAUT"), "nat_id": str(p.get("NAT_ID")),
+            "insee": str(p.get("COM_CD_INSEE")), "adresse": adr,
+            "sup_id": p.get("SUP_ID"),
+        })
     print(f"  ANFR dept {dept}   : {len(out)} distinct supports")
     return out
 
@@ -686,9 +682,9 @@ def main() -> None:
     ap.add_argument("--dept", default=None,
                     help="département code, e.g. 77 (default: \"dept\" in "
                          "data/<region>/scenarios.json)")
-    ap.add_argument("--anfr", type=Path,
-                    default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson",
-                    help="ANFR SUP_SUPPORT.geojson export (default: ~/Downloads)")
+    ap.add_argument("--anfr", type=Path, default=None,
+                    help="ANFR SUP_SUPPORT.txt (or a former .geojson); default: "
+                         "the newest export in data/anfr/ (make anfr)")
     ap.add_argument("--etapes", default="vert,orange,jaune",
                     help="stages (row colours) kept in sites.csv "
                          "(default: all but blanc)")
@@ -718,7 +714,9 @@ def main() -> None:
     print("▶ reference datasets")
     communes_index, communes = load_communes(args.dept)
     bdtopo = load_bdtopo(communes)
-    anfr = load_anfr(args.anfr, args.dept) if args.anfr.exists() else []
+    if args.anfr is None and (folder := latest_export()):
+        args.anfr = folder / SUPPORTS
+    anfr = load_anfr(args.anfr, args.dept) if args.anfr and args.anfr.exists() else []
     if not anfr:
         print(f"  ! ANFR export missing ({args.anfr}) — no height cross-check",
               file=sys.stderr)

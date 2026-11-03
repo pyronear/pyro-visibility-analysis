@@ -45,6 +45,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | script | where | role |
 |---|---|---|
 | `resolve_points_hauts.py` | terminal | partner spreadsheet (communes/addresses) → `sites.csv` |
+| `fetch_anfr.py` | terminal | latest ANFR register → `data/anfr/<date>/` (`make anfr`) |
 | `find_candidates.py` | terminal | new high points from the ANFR register and BD TOPO water towers, ranked by blind spot; `--around-zone`: every support in range of one zone |
 | `fetch_zone.py` | terminal | a zone of interest (one forest, a département's state forests, the OLD) from the IGN WFS → `zones/<name>.gpkg` |
 | `audit_sites.py` | terminal | check declared heights against Lidar HD MNT/MNS |
@@ -299,11 +300,16 @@ operator sites (`max_operateurs`) or stopped at a target percentage. Both
 `prioritise_sites.py` and `scenario_layers.py` call it, so they cannot
 disagree; « public only » is `max_operateurs=0`.
 
-**Access cost is declared, not guessed.** Owner categories (public /
-delegataire / operateur) are declared under `gestionnaires` in
+**Access cost is declared, not guessed.** Owner categories (public / reseau /
+delegataire / operateur / prive) are declared under `gestionnaires` in
 `scenarios.json`, matched on accent- and case-insensitive substrings. An
-unknown owner defaults to `operateur` (paid), so the affordable set is
-understated rather than overstated. `Owner` carries the manager; `Status`
+unknown owner defaults to a paid category, so the affordable set is
+understated rather than overstated. `public` and `reseau` (SNCF, RTE, EDF…)
+are free under `max_operateurs`; every other category counts against it.
+`find_candidates.py` writes the ANFR owner type as `PUBLIC`, `RESEAU` or
+`PRIVE`. **Use a current ANFR export** (`make anfr`): `TPO_ID` follows tower
+companies' purchases, and an export two years old filed Hivory or Totem
+pylons under the former operator or the landowner — some passed for public. `Owner` carries the manager; `Status`
 (`EN PLACE`) whether a camera is installed — mixing them erased the manager.
 
 **Scenarios live in `data/<region>/scenarios.json`**, not in code: an explicit
@@ -349,7 +355,7 @@ an observer; its address field matches more reliably than BAN geocoding.
 | Lidar HD MNS / MNT / MNH | WMS `data.geopf.fr/wms-r`, layers `IGNF_LIDAR-HD_MN{S,T,H}_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93` |
 | Lidar HD coverage | `macarte.ign.fr/carte/mThSup/diffusionMNxLiDARHD` |
 | OLD zones | WFS `data.geopf.fr/wfs/ows`, `DEBROUSSAILLEMENT:debroussaillement` |
-| Radio supports | data.gouv.fr, « Données sur les installations radioélectriques de plus de 5 watts » → `SUP_SUPPORT`, with `SUP_NATURE`, `SUP_PROPRIETAIRE` |
+| Radio supports | data.gouv.fr, « Données sur les installations radioélectriques de plus de 5 watts » → `SUP_SUPPORT.txt`, with `SUP_NATURE`, `SUP_PROPRIETAIRE`; `make anfr` fetches the latest into `data/anfr/<date>/` |
 | Structures with height | WFS `data.geopf.fr/wfs/ows`, `BDTOPO_V3:reservoir`, `BDTOPO_V3:pylone` |
 | Address geocoding | `api-adresse.data.gouv.fr` (BAN) |
 | Communes, outlines | `geo.api.gouv.fr/departements/<NN>/communes?fields=contour` |

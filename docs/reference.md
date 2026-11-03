@@ -108,10 +108,20 @@ it was downloaded. `compute_viewsheds.py` then warns and computes it clipped;
 for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
 `output/`, since every viewshed must share the new grid.
 
+**Owners.** The ANFR owner type (`TPO_ID`) sorts each support into `PUBLIC`
+(communes, water syndicates, départements, régions, SDIS, State services),
+`RESEAU` (SNCF, RTE, EDF/Enedis, motorways, RATP, La Poste) or `PRIVE` (tower
+companies — TDF, Totem, Hivory, Cellnex, ATC… —, telecom operators,
+broadcasters, any private owner), written at the head of `Owner`. It is only
+as current as the export: `make anfr` fetches the latest into
+`data/anfr/<date>/`, read by default, and the script warns when it is more
+than six months old. An export two years old had no pylon at all under
+Hivory or Totem, and some of theirs passed for public.
+
 **Useful options:** `--sources`, `--doublon`, `--anfr`, `--refs` (ANFR
-files), `--top`, `--ecart`
-(minimum spacing between candidates, m), `--max-operateurs` (cap on paid
-operator supports), `--publics-seulement`.
+files; default the newest `data/anfr/` export), `--top`, `--ecart`
+(minimum spacing between candidates, m), `--max-operateurs` (cap on `PRIVE`
+supports), `--publics-seulement` (`PUBLIC` and `RESEAU` only).
 
 #### Around one zone: `--around-zone`
 
@@ -380,7 +390,9 @@ the `dept` zone and the candidate scripts (not `find_candidates.py
 
 `data/<region>/scenarios.json` names the regions whose viewsheds are read
 (`regions`), the zone of interest (`zone`, `dept`), the owner categories
-(`gestionnaires`) and the scenarios. Each scenario is a list or a rule:
+(`gestionnaires`) and the scenarios. `public` and `reseau` are free in a
+capped scenario: `max_operateurs` counts every other category. Each scenario
+is a list or a rule:
 
 | key | meaning |
 |---|---|
@@ -390,7 +402,7 @@ the `dept` zone and the candidate scripts (not `find_candidates.py
 | `"meilleurs": 6` | the 6 best by marginal contribution |
 | `"cible_pct": 90` | as many sites as needed to reach 90 % of the zone |
 | `"critere": "triangulation"` | optimise triangulation instead of coverage |
-| `"max_operateurs": 2` | at most 2 paid operator sites, the rest public |
+| `"max_operateurs": 2` | at most 2 paid sites (not `public` nor `reseau`), the rest free |
 | `"regions_candidats": [...]` | pick candidates from these regions only; they need not be in `regions` |
 
 ```bash
