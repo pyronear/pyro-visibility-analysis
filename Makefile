@@ -7,7 +7,8 @@
 #   make analyse   REGION=<region> PICKS=20
 #
 # REGION defaults to config.py's. The two QGIS steps (build_qgis_project.py)
-# are run from the QGIS Python console, not from here.
+# are run from the QGIS Python console, not from here. Without QGIS,
+# `make viewer` writes one HTML page that shows the same layers.
 
 PY      := uv run python
 REGION  ?=
@@ -17,6 +18,7 @@ FREEZE  ?=
 PROJECT ?=
 LIGHT_DEM ?= 50
 NAME    ?=
+RES     ?= 100
 POINT   ?=
 ONF     ?=
 
@@ -24,12 +26,12 @@ R := $(if $(REGION),--region $(REGION))
 
 .DEFAULT_GOAL := help
 .PHONY: help gdal-check zone audit dem viewsheds summary prioritise scenarios \
-        scenarios-md package analyse
+        scenarios-md viewer package analyse
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*## "} {printf "  make %-13s %s\n", $$1, $$2}'
-	@echo "  Variables: REGION=<region> ZONES=$(ZONES) PICKS=$(PICKS) FREEZE=1 PROJECT=<x>.qgz"
+	@echo "  Variables: REGION=<region> ZONES=$(ZONES) PICKS=$(PICKS) FREEZE=1 PROJECT=<x>.qgz RES=$(RES)"
 	@echo "             NAME=<zone> POINT=<lat>,<lon> ONF=<id> (make zone)"
 
 gdal-check: ## Check gdal_viewshed (pulls the Docker image the first time)
@@ -59,6 +61,9 @@ scenarios: ## Per-scenario camera-count rasters (FREEZE=1 before delivery)
 
 scenarios-md: ## docs/scenarios-<region>.md
 	$(PY) make_scenarios_md.py $(R)
+
+viewer: ## Self-contained HTML page: sites, zone, viewsheds, scenarios (RES metres)
+	$(PY) viewer.py $(R) --res $(RES)
 
 package: ## Deliverable zip of PROJECT, with a light DEM (LIGHT_DEM metres)
 	@test -n "$(PROJECT)" || { echo "❌ PROJECT=<project>.qgz is required"; exit 1; }
