@@ -58,6 +58,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | `scenario_layers.py` | terminal | per-scenario camera-count rasters |
 | `build_qgis_project.py` | **QGIS console** | assemble the full QGIS project |
 | `make_scenarios_md.py` | terminal | `docs/scenarios-<region>.md` |
+| `viewer.py` | terminal | `output/viewer.html`, the same layers without QGIS |
 | `package_project.py` | terminal | deliverable zip with relative paths |
 | `analysis_shape/config_loader.py` | imported | load `config.py` by path, not via `sys.path` |
 | `analysis_shape/gdal_viewshed.py` | imported | `gdal_viewshed` in Docker or native, `run.json` guard |
@@ -87,6 +88,7 @@ make summary REGION=<region>                     # 6, ZONES=dept by default
 make prioritise REGION=<region> PICKS=<n>
 make scenarios REGION=<region>                   # 7 (FREEZE=1 before delivery)
 # 8. [QGIS Python console] exec(open('…/build_qgis_project.py').read())
+make viewer REGION=<region>                      # 8b, same layers as one HTML page
 make scenarios-md REGION=<region>                # 9, before packaging
 make package PROJECT=<project>.qgz               # LIGHT_DEM=50
 ```
