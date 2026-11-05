@@ -64,6 +64,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | `analysis_shape/zones.py` | imported | mask of a zone of interest (OLD, département, gpkg) |
 | `analysis_shape/selection.py` | imported | the one greedy selection, shared |
 | `analysis_shape/terrain.py` | imported | observer height corrected for the surface model |
+| `analysis_shape/download.py` | imported | WMS chunks 4 at a time, failed ones retried at the end |
 
 ---
 
