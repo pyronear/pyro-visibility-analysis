@@ -11,7 +11,7 @@ by default, ~70 m on the ground in France) and only the window around its site
 is kept, as a 1-bit PNG. Figures in the page are therefore approximate: on 418
 sites at 10 m, every scenario came within 0.3 point of the exact figures, at
 50 m as at 100 m. The exact ones of each scenario come from its meta.json and
-are shown next to them. 100 m gave a 14 MB page there, 50 m 32 MB.
+are shown next to them. 100 m gave a 7 MB page there, 50 m 16 MB.
 
 Usage:
     make viewer REGION=<region>
@@ -53,6 +53,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "viewer_template.html")
 L93 = CRS.from_epsg(2154)
 WEB = CRS.from_epsg(3857)
+# Never a value of a viewshed mask (0/1, or 255 in some old ones).
+VOTING_NODATA = 200
 
 
 def png_b64(mask):
@@ -127,20 +129,21 @@ def read_window(path, window, grid, res):
     left, top, width, height = grid
     col, row, w, h = window
     with rasterio.open(path) as src:
-        # Mode keeps a coarse cell visible when most of it is. Never declare
-        # nodata=0 here: mode skips nodata, so every cell with a single
-        # visible pixel would come out visible.
+        # Mode keeps a coarse cell visible when most of it is. It skips
+        # nodata, so an old raster declaring nodata=0 would turn every cell
+        # with one visible pixel visible: its nodata is swapped for a value no
+        # mask holds, so every pixel votes. The source's nodata then reads as
+        # « not visible », as in summary.read_mask.
         with WarpedVRT(src, src_crs=source_crs(src), crs=WEB,
                        transform=from_origin(left, top, res, res),
                        width=width, height=height,
+                       src_nodata=VOTING_NODATA, nodata=VOTING_NODATA,
                        resampling=Resampling.mode) as vrt:
             band = vrt.read(1, window=Window(col, row, w, h))
-            visible = band > 0
-            # An old raster's nodata reads as « not visible », as in
-            # summary.read_mask.
-            if vrt.nodata is not None:
-                visible &= band != vrt.nodata
-            return visible
+        visible = (band > 0) & (band != VOTING_NODATA)
+        if src.nodata is not None:
+            visible &= band != src.nodata
+        return visible
 
 
 def zone_layer(region, config, grid, res):
@@ -157,7 +160,8 @@ def zone_layer(region, config, grid, res):
         "name": config.get("zone_libelle", name),
         # The denominator is the polygons, never the mask: the mask stops at
         # the grid, which would inflate every percentage (zones.py).
-        "km2": round(geometry.area / 1e6, 1),
+        # Unrounded: a forest zone may be well under 1 km².
+        "km2": geometry.area / 1e6,
         "mask": png_b64(mask),
         "outline": outline.__geo_interface__,
     }

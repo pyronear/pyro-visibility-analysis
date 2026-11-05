@@ -1,6 +1,7 @@
 <!doctype html>
-<!-- Template filled by viewer.py: __DATA__ below is replaced by the region's
-     data. Labels are in French because the end client reads them. -->
+<!-- Template filled by viewer.py, which replaces the DATA placeholder in the
+     script with the region's data. Labels are in French because the end
+     client reads them. -->
 <html lang="fr">
 <head>
 <meta charset="utf-8">
@@ -23,6 +24,7 @@
   #list { flex: 1; overflow-y: auto; padding: 4px 10px; }
   #list h3 { font-size: 12px; margin: 8px 0 2px; text-transform: uppercase; color: #555; }
   #list label { display: flex; align-items: center; gap: 4px; padding: 1px 0; cursor: pointer; }
+  #list label[hidden] { display: none; }
   #list label span.name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -2px; }
@@ -70,6 +72,8 @@ const CATEGORIES = {
 const COUNT_COLORS = [[214, 40, 40], [247, 156, 40], [120, 190, 90], [30, 120, 60]];
 const G = DATA.grid;
 const $ = id => document.getElementById(id);
+// Accent- and case-insensitive, for the site filter.
+const fold = s => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 const fmt = (v, d = 1) => v.toLocaleString('fr-FR', {maximumFractionDigits: d, minimumFractionDigits: d});
 
 // --- Map and basemaps ---------------------------------------------------
@@ -252,7 +256,7 @@ function buildList() {
     $('list').append(h);
     for (const s of groups[cat].sort((a, b) => a.name.localeCompare(b.name))) {
       const row = document.createElement('label');
-      row.dataset.name = s.name.toLowerCase();
+      row.dataset.name = fold(s.name);
       const box = document.createElement('input');
       box.type = 'checkbox'; box.value = s.name; box.disabled = !s.bits;
       box.addEventListener('change', () => toggle(s.name));
@@ -314,7 +318,7 @@ function download(name, text, type) {
   $('zone-only').onchange = render;
   $('opacity').oninput = e => overlay.setOpacity(+e.target.value);
   $('filter').oninput = e => {
-    const q = e.target.value.toLowerCase();
+    const q = fold(e.target.value);
     for (const row of document.querySelectorAll('#list label')) row.hidden = !row.dataset.name.includes(q);
   };
   $('export-geojson').onclick = () => download(`selection-${DATA.region}.geojson`, JSON.stringify({

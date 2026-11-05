@@ -422,7 +422,7 @@ Each viewshed is resampled (majority) onto one shared Web Mercator grid of
 coverage and triangulation against the zone's **polygon** area, with each
 cell's ground area corrected for latitude. On a 418-site region at 10 m, every
 scenario came within 0.3 point of `scenario_layers.py`, at 50 m as at 100 m;
-the page was 14 MB at 100 m, 32 MB at 50 m. The exact figures of a scenario
+the page was 7 MB at 100 m, 16 MB at 50 m. The exact figures of a scenario
 are shown when it is selected.
 
 A site with a viewshed but no row in any `sites.csv` is skipped with a
