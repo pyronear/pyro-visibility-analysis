@@ -11,7 +11,8 @@ written from one thread (rasterio datasets are not thread-safe).
 """
 
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from itertools import islice
 
 WORKERS = 4  # more risks being throttled by the IGN servers
 RETRY_PASSES = 3
@@ -35,18 +36,27 @@ def fetch_parallel(chunks, fetch, on_result, workers=WORKERS,
                   f"{len(pending)} chunk(s) in {pause_s}s")
             time.sleep(pause_s)
         failed = []
+        queue = iter(pending)
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = {pool.submit(fetch, chunk): chunk for chunk in pending}
+            # At most 2 × workers chunks in flight: a downloaded array waits
+            # in memory for its write, and writes can be slower than downloads.
+            running = {pool.submit(fetch, chunk): chunk
+                       for chunk in islice(queue, 2 * workers)}
             try:
-                for future in as_completed(futures):
-                    chunk = futures.pop(future)  # frees the array once written
-                    try:
-                        data = future.result()
-                    except Exception as exc:  # noqa: BLE001 - retried next pass
-                        print(f"   ⚠️  chunk failed ({type(exc).__name__}: {exc})")
-                        failed.append(chunk)
-                        continue
-                    on_result(chunk, data)
+                while running:
+                    done, _ = wait(running, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        chunk = running.pop(future)
+                        try:
+                            data = future.result()
+                        except Exception as exc:  # noqa: BLE001 - retried next pass
+                            print(f"   ⚠️  chunk failed "
+                                  f"({type(exc).__name__}: {exc})")
+                            failed.append(chunk)
+                            continue
+                        on_result(chunk, data)
+                    for chunk in islice(queue, len(done)):
+                        running[pool.submit(fetch, chunk)] = chunk
             except BaseException:
                 # Leaving the block would otherwise wait for every queued request.
                 pool.shutdown(wait=False, cancel_futures=True)
@@ -59,9 +69,11 @@ if __name__ == "__main__":
     import threading
 
     calls = {}
+    started = []
     main_thread = threading.get_ident()
 
     def fake_fetch(chunk):
+        started.append(chunk)
         calls[chunk] = calls.get(chunk, 0) + 1
         if chunk == "dead" or (chunk == "flaky" and calls[chunk] == 1):
             raise OSError("boom")
@@ -87,4 +99,18 @@ if __name__ == "__main__":
         pass
     else:
         raise AssertionError("a write error must stop the run, not be retried")
+
+    # A slow writer must not let downloaded arrays pile up in memory.
+    started.clear()
+    n_written = 0
+
+    def slow_write(chunk, data):
+        global n_written
+        assert len(started) - n_written <= 2 * 2, (len(started), n_written)
+        n_written += 1
+        time.sleep(0.005)
+
+    assert fetch_parallel([f"c{i}" for i in range(40)], fake_fetch, slow_write,
+                          workers=2, pause_s=0) == []
+    assert n_written == 40
     print("download self-check ok")
