@@ -182,6 +182,10 @@ around the sites. Writes `data/<region>/dem_l93.tif`.
 - `--product MNS_CORREL` — where Lidar HD does not exist yet (whole regions):
   the national photogrammetric surface model, which carries the canopy and
   matches the lidar to +0.4 m median.
+- Chunks are fetched 4 at a time. A chunk that fails is retried at the end of
+  the run, up to 3 more passes; if one still fails, the partial file is
+  deleted and the previous `dem_l93.tif` is kept. `fill_dem_gaps.py` works
+  the same way and reports the chunks it could not fill.
 - The download **does not resume**: unwritten blocks read back as 0 m, not
   nodata. If you stop it, delete the partial file.
 
