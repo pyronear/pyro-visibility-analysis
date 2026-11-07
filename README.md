@@ -183,11 +183,12 @@ make viewer REGION=<region>          # RES=50 for a sharper, heavier page
 ```
 
 `data/<region>/output/viewer.html`, one file with the data inside: send it as
-is, it opens with a double click (the basemaps need internet). Sites coloured
-by access cost, the zone of interest, every scenario, and any set of ticked
-sites recounted live — coverage and triangulation of the zone, how many
-cameras see each cell. Exports the selection as GeoJSON, or as a `{"sites":
-[…]}` list to paste into `scenarios.json`. Figures in the page are counted at
+is, it opens with a double click (the basemaps need internet). It shows what
+was computed: the sites of the scenarios (not the whole candidate pool, nor a
+`tous` scenario), labelled and coloured by access cost, each one's share of the
+zone, the zone of interest and the département outline. Any set of those sites,
+ticked, is recounted live — coverage and triangulation of the zone, how many
+cameras see each cell — and exports as GeoJSON. Figures in the page are counted at
 `RES` and approximate (within 0.3 point of the exact ones on a 418-site
 region); a scenario's exact figures are shown next to them.
 

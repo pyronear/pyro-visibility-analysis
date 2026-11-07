@@ -26,6 +26,8 @@
   #list label { display: flex; align-items: center; gap: 4px; padding: 1px 0; cursor: pointer; }
   #list label[hidden] { display: none; }
   #list label span.name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #list label span.seen { color: #777; font-size: 11px; }
+  .leaflet-tooltip.site-label { background: #fffd; border: 0; box-shadow: none; padding: 0 3px; font-size: 11px; font-weight: 600; }
   .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
   .legend i { display: inline-block; width: 12px; height: 12px; margin-right: 3px; vertical-align: -2px; }
   .coverage { image-rendering: pixelated; }
@@ -51,7 +53,7 @@
       <i style="background:#d62828"></i>0 <i style="background:#f79c28"></i>1
       <i style="background:#78be5a"></i>2 <i style="background:#1e783c"></i>3+ caméras
     </div>
-    <button id="export-geojson">Exporter GeoJSON</button><button id="export-json">Copier pour scenarios.json</button>
+    <button id="export-geojson">Exporter GeoJSON</button>
   </section>
   <section><input type="search" id="filter" placeholder="Filtrer les sites…"></section>
   <div id="list"></div>
@@ -181,11 +183,16 @@ function render() {
   $('tri').textContent = fmt(100 * tri / DATA.zone.km2) + ' %';
   $('counts').textContent = `${selected.size} site(s) · ${fmt(covAll, 0)} km² vus au total ` +
     `· approx. à ${G.res} m`;
-  // Unselected sites stay small so a large candidate pool does not hide the map.
+  // A ticked site is drawn full with its name always shown; an unticked one
+  // hollow, named on hover only.
   for (const [name, m] of markers) {
     const on = selected.has(name);
-    m.setStyle({weight: on ? 3 : 1, color: on ? '#000' : '#fff', fillOpacity: on ? 1 : 0.6});
-    m.setRadius(on ? 7 : 4);
+    m.setStyle({weight: on ? 3 : 2, color: on ? '#000' : '#888', fillOpacity: on ? 1 : 0.15});
+    m.setRadius(on ? 8 : 6);
+    if (m.getTooltip().options.permanent !== on) {
+      m.unbindTooltip().bindTooltip(name, on ? LABEL : {});
+      if (on) m.openTooltip();
+    }
   }
   for (const box of document.querySelectorAll('#list input')) box.checked = selected.has(box.value);
 }
@@ -222,6 +229,7 @@ function showExact() {
 
 // --- Sites: markers and side list ---------------------------------------
 const markers = new Map();
+const LABEL = {permanent: true, direction: 'right', offset: [8, 0], className: 'site-label'};
 const sitesLayer = L.layerGroup().addTo(map);
 
 function popup(site) {
@@ -269,12 +277,17 @@ function buildList() {
       const name = document.createElement('span');
       name.className = 'name'; name.textContent = s.name;
       name.title = s.bits ? s.name : s.name + ' (pas de viewshed)';
+      // Share of the zone this site sees on its own.
+      const seen = document.createElement('span');
+      seen.className = 'seen';
+      if (s.bits) seen.textContent = fmt(100 * siteKm2(s)[1] / DATA.zone.km2, 0) + ' %';
+      seen.title = "Part de la zone d'enjeu vue par ce site seul";
       name.addEventListener('click', e => {
         e.preventDefault();
         map.panTo([s.lat, s.lon]);
         markers.get(s.name).openPopup();
       });
-      row.append(box, dot, name);
+      row.append(box, dot, name, seen);
       $('list').append(row);
 
       const m = L.circleMarker([s.lat, s.lon], {radius: 6, fillColor: color, fillOpacity: 1,
@@ -303,7 +316,16 @@ function download(name, text, type) {
   for (const s of DATA.sites) if (s.mask) s.bits = await decode(s.mask, s.window[2], s.window[3]);
 
   const zoneLayer = L.geoJSON(DATA.zone.outline, {style: {color: '#d0127a', weight: 2, fill: false}}).addTo(map);
-  L.control.layers(basemaps, {'Couverture': overlay, "Zone d'enjeu": zoneLayer, 'Sites': sitesLayer}).addTo(map);
+  const overlays = {'Couverture': overlay, "Zone d'enjeu": zoneLayer, 'Sites': sitesLayer};
+  if (DATA.dept) {
+    overlays['Département'] = L.geoJSON(DATA.dept, {interactive: false,
+      style: {color: '#222', weight: 2.5, dashArray: '8 5', fill: false}}).addTo(map);
+  }
+  L.control.layers(basemaps, overlays).addTo(map);
+  // Frame what was computed — the zone and its sites — not the whole DEM.
+  const frame = zoneLayer.getBounds();
+  for (const s of DATA.sites) frame.extend([s.lat, s.lon]);
+  map.fitBounds(frame, {padding: [20, 20]});
   sitesLayer.bringToFront?.();
 
   for (const s of DATA.scenarios) {
@@ -333,11 +355,6 @@ function download(name, text, type) {
       properties: {Name: s.name, Owner: s.owner, Height: s.height, categorie: s.category},
     })),
   }, null, 1), 'application/geo+json');
-  $('export-json').onclick = async () => {
-    const text = JSON.stringify({sites: [...selected].sort()});
-    try { await navigator.clipboard.writeText(text); alert('Copié dans le presse-papiers.'); }
-    catch { prompt('À coller dans scenarios.json :', text); }
-  };
 
   buildList();
   const start = deployed();

@@ -410,11 +410,16 @@ uv run python viewer.py --region <region> [--res 50]
 ```
 
 Writes `output/viewer.html`, self-contained: Leaflet and the basemaps (IGN
-Plan by default, IGN aerial photo, OpenStreetMap) come from the
-internet, everything else is inside the file. Reads `scenarios.json` (`regions`, the `regions_candidats` of every
-scenario, `zone`, `gestionnaires`), each region's `sites.csv`,
-`viewsheds_geotiff/` and `run.json`, and the `scenario_*/meta.json` of the
-region.
+Plan by default, IGN aerial photo, OpenStreetMap) come from the internet,
+everything else is inside the file. Reads `scenarios.json` (`regions`, the
+`regions_candidats` of every scenario, `zone`, `dept`, `gestionnaires`), each
+region's `sites.csv`, `viewsheds_geotiff/` and `run.json`, and the
+`scenario_*/meta.json` of the region.
+
+The page shows what was computed, not the candidate pool: only the sites of
+the region's scenarios, minus `tous` ones (even frozen, they list the whole
+pool). Before any scenario exists, every site is shown. The département
+outline comes from `"dept"`, like the `dept` zone; without one, there is none.
 
 Each viewshed is resampled (majority) onto one shared Web Mercator grid of
 `--res` metres, and only the window within the radius of its site is kept, as a

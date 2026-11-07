@@ -1,9 +1,11 @@
 """One self-contained HTML page to browse a region without QGIS.
 
-Writes `data/<region>/output/viewer.html`: a Leaflet map with the sites, the
-zone of interest, every viewshed and the scenarios. Tick any set of sites and
-the page recounts, in the browser, how many cameras see each cell and the
-coverage / triangulation of the zone. The data is inside the file, so it can be
+Writes `data/<region>/output/viewer.html`: a Leaflet map of what was computed —
+the sites of the scenarios, their viewsheds, the zone of interest and the
+département outline. Tick or untick any of those sites and the page recounts,
+in the browser, how many cameras see each cell and the coverage /
+triangulation of the zone. A `tous` scenario is not a selection: it is left
+out, and so are the candidates no other scenario picked. The data is inside the file, so it can be
 sent as is and opened with a double click (the basemaps need internet).
 
 Each viewshed is resampled onto one shared Web Mercator grid (`--res`, 100 m
@@ -167,10 +169,24 @@ def zone_layer(region, config, grid, res):
     }
 
 
-def read_scenarios(region):
+def dept_outline(region, config):
+    """Département outline for display, or None outside France / without one."""
+    if not config.get("dept"):
+        return None
+    geometry = zone_geometry(region, "dept", config["dept"])
+    return gpd.GeoSeries([geometry], crs=L93).simplify(50).to_crs("EPSG:4326").iloc[0].__geo_interface__
+
+
+def read_scenarios(region, config):
+    """Scenarios computed by scenario_layers.py, except « every site » ones."""
     scenarios = []
     pattern = os.path.join("data", region, "output", "scenario_*", "meta.json")
     for path in sorted(glob.glob(pattern)):
+        key = os.path.basename(os.path.dirname(path))[len("scenario_"):]
+        spec = config["scenarios"].get(key)
+        # Even frozen (--figer), « tous » lists the whole pool, not a choice.
+        if spec is None or spec.get("tous"):
+            continue
         with open(path, encoding="utf-8") as handle:
             meta = json.load(handle)
         scenarios.append({
@@ -199,6 +215,14 @@ def main():
     if not paths:
         raise SystemExit(f"❌ no viewshed in data/{{{','.join(regions)}}}/output/"
                          f"viewsheds_geotiff/ — run compute_viewsheds.py first")
+    # Only what was computed: the sites some scenario picked, not the whole
+    # candidate pool. Without scenarios yet, every site.
+    scenarios = read_scenarios(args.region, config)
+    picked = {name for s in scenarios for name in s["sites"]}
+    if picked:
+        paths = {name: path for name, path in paths.items() if name in picked}
+    else:
+        print("   ⚠️  no scenario computed yet: every site is shown")
 
     grid = shared_grid(paths.values(), args.res)
     left, top, width, height = grid
@@ -226,8 +250,9 @@ def main():
                  "width": width, "height": height,
                  "bounds": [[south, west], [north, east]]},
         "zone": zone_layer(args.region, config, grid, args.res),
-        "sites": list(sites.values()),
-        "scenarios": read_scenarios(args.region),
+        "dept": dept_outline(args.region, config),
+        "sites": [sites[name] for name in paths if name in sites],
+        "scenarios": scenarios,
     }
 
     with open(TEMPLATE, encoding="utf-8") as handle:
