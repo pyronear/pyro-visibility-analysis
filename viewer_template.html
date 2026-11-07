@@ -246,7 +246,8 @@ function render() {
 function setSelection(names, scenario = '') {
   for (const n of selected) addSite(byName.get(n), -1);
   selected.clear();
-  for (const n of names) {
+  // A scenario may name one site twice (two fragments, one site): count it once.
+  for (const n of new Set(names)) {
     const site = byName.get(n);
     if (site && site.bits) { selected.add(n); addSite(site, 1); }
   }

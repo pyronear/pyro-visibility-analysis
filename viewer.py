@@ -212,7 +212,16 @@ def main():
         config["regions"]
         + [r for spec in config["scenarios"].values() if isinstance(spec, dict)
            for r in spec.get("regions_candidats", [])]))
-    paths = viewshed_index(regions)
+    # First region wins, as in read_sites(), so a site's raster and its
+    # position come from the same folder. Two different rasters under one name
+    # are refused, as scenario_layers.scenario_paths() does.
+    paths = {}
+    for region in regions:
+        for name, path in viewshed_index([region]).items():
+            known = paths.setdefault(name, path)
+            if known != path and not os.path.samefile(known, path):
+                raise SystemExit(f"❌ « {name} » has two different viewsheds:\n"
+                                 f"   {known}\n   {path}")
     if not paths:
         raise SystemExit(f"❌ no viewshed in data/{{{','.join(regions)}}}/output/"
                          f"viewsheds_geotiff/ — run compute_viewsheds.py first")
@@ -224,13 +233,15 @@ def main():
         paths = {name: path for name, path in paths.items() if name in picked}
     else:
         print("   ⚠️  no scenario computed yet: every site is shown")
+    sites = read_sites(regions)
+    # Without scenarios, sites with no viewshed yet stay listed, unticked.
+    shown = picked or set(sites)
 
     grid = shared_grid(paths.values(), args.res)
     left, top, width, height = grid
     print(f"▶ {len(paths)} viewsheds on a {width} × {height} grid "
           f"at {args.res:g} m")
 
-    sites = read_sites(regions)
     radii = {r: detection_radius(os.path.join("data", r, "output"))[0]
              for r in regions}
     for name, path in paths.items():
@@ -252,7 +263,7 @@ def main():
                  "bounds": [[south, west], [north, east]]},
         "zone": zone_layer(args.region, config, grid, args.res),
         "dept": dept_outline(args.region, config),
-        "sites": [sites[name] for name in paths if name in sites],
+        "sites": [site for name, site in sites.items() if name in shown],
         "scenarios": scenarios,
     }
 
