@@ -4,7 +4,8 @@ Coverage analysis for smoke-detection cameras. For each candidate high point,
 GDAL computes what a camera there would see on a high-resolution elevation
 model; the scripts then measure how much of the zone that matters is covered
 (≥ 1 camera) and triangulated (≥ 2), rank the sites by what each one adds, and
-build deployment scenarios assembled into a QGIS project.
+build deployment scenarios assembled into a QGIS project — or into a single
+HTML page for anyone without QGIS.
 
 Two places run code, and each step below says which one:
 
@@ -28,7 +29,7 @@ paths that QGIS depends on.
    `make gdal-check`. Without Docker, install GDAL natively instead: see
    [Native GDAL](docs/reference.md#native-gdal-without-docker).
 3. **QGIS** — to open and assemble the final project (step 8). No plugin
-   needed.
+   needed. Not needed for the HTML page (step 8b), which opens in a browser.
 4. **Only to build or extend a site list from public data** — the ANFR
    register, from data.gouv.fr, dataset « Données sur les installations
    radioélectriques de plus de 5 watts »: `SUP_SUPPORT.geojson` and the
@@ -175,6 +176,22 @@ Sites coloured by access cost, one layer per scenario (named
 `<n> sites · <x> % couv · <y> % tri`), the zone of interest, the individual
 viewsheds and a background map.
 
+### 8b. [Terminal] Or: one HTML page, no QGIS — `viewer.py`
+
+```bash
+make viewer REGION=<region>          # RES=50 for a sharper, heavier page
+```
+
+`data/<region>/output/viewer.html`, one file with the data inside: send it as
+is, it opens with a double click (the basemaps need internet). It shows what
+was computed: the sites of the scenarios (not the whole candidate pool, nor a
+`tous` scenario), labelled and coloured by access cost, each one's share of the
+zone, the zone of interest and the département outline. Any set of those sites,
+ticked, is recounted live — coverage and triangulation of the zone, how many
+cameras see each cell — and exports as GeoJSON. Figures in the page are counted at
+`RES` and approximate (within 0.3 point of the exact ones on a 418-site
+region); a scenario's exact figures are shown next to them.
+
 ### 9. [Terminal] Package the deliverable
 
 ```bash
@@ -278,6 +295,8 @@ see [docs/reference.md](docs/reference.md).
 ├── data/                  # ignored by git, except data/example/ (fictitious template)
 ├── compute_viewsheds.py   # [Terminal] viewsheds, output.csv, union
 ├── build_qgis_project.py  # [QGIS] project assembly
+├── viewer.py              # [Terminal] the same layers as one HTML page
+├── viewer_template.html   #   the page viewer.py fills
 ├── *.py                   # [Terminal] the other scripts, see Reference
 ├── experiments/           # [Terminal] DEM download, gap filling, downsampling, mast flattening
 ├── analysis_shape/        # modules imported by the scripts
@@ -293,4 +312,4 @@ see [docs/reference.md](docs/reference.md).
 ```
 
 All coordinates are reprojected from `EPSG:4326` to `EPSG:2154`
-(Lambert-93). Basemaps are OpenStreetMap or Esri imagery.
+(Lambert-93). Basemaps are OpenStreetMap, IGN Plan or IGN aerial imagery.

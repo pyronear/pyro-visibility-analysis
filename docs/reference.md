@@ -402,17 +402,46 @@ Copies exactly the files the project references, with relative paths.
 `--light-dem M` ships the DEM coarsened to M metres (it only serves as a
 hillshade); `--skip-viewsheds` leaves the individual viewsheds out.
 
-### `export.py` and `visualize.py` — quick look outside QGIS
+### `viewer.py` — one HTML page, no QGIS
+
+```bash
+make viewer REGION=<region>                      # RES=100 by default
+uv run python viewer.py --region <region> [--res 50]
+```
+
+Writes `output/viewer.html`, self-contained: Leaflet and the basemaps (IGN
+Plan by default, IGN aerial photo, OpenStreetMap) come from the internet,
+everything else is inside the file. Reads `scenarios.json` (`regions`, the
+`regions_candidats` of every scenario, `zone`, `dept`, `gestionnaires`), each
+region's `sites.csv`, `viewsheds_geotiff/` and `run.json`, and the
+`scenario_*/meta.json` of the region.
+
+The page shows what was computed, not the candidate pool: only the sites of
+the region's scenarios, minus `tous` ones (even frozen, they list the whole
+pool). Before any scenario exists, every site is shown. The département
+outline comes from `"dept"`, like the `dept` zone; without one, there is none.
+
+Each viewshed is resampled (majority) onto one shared Web Mercator grid of
+`--res` metres, and only the window within the radius of its site is kept, as a
+1-bit PNG. The page sums the ticked sites into a camera-count grid and reports
+coverage and triangulation against the zone's **polygon** area, with each
+cell's ground area corrected for latitude. On a 418-site region at 10 m, every
+scenario came within 0.3 point of `scenario_layers.py`, at 50 m as at 100 m;
+the page was 7 MB at 100 m, 16 MB at 50 m. The exact figures of a scenario
+are shown when it is selected.
+
+A site with a viewshed but no row in any `sites.csv` is skipped with a
+warning; a site with no viewshed is listed but cannot be ticked.
+
+### `export.py` — the viewsheds as polygons
 
 ```bash
 uv run python export.py           # GeoPackage of the viewsheds (--kmz: also Google Earth)
-uv run streamlit run visualize.py # web app to browse it
 ```
 
 `export.py` writes `kmz_output_<region>/viewsheds_<region>.gpkg`, one polygon
 per site with `area_km2` counted on the raster (`--min-polygon-area`,
-`--simplify` only clean the outlines). `visualize.py` maps the selected sites,
-lists their areas and computes the union on demand.
+`--simplify` only clean the outlines).
 
 ---
 
@@ -435,6 +464,7 @@ Under `data/<region>/`:
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
 | `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest, layer `zone` |
 | `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json`, `sites.gpkg` (the scenario's sites as points) |
+| `output/viewer.html` | `viewer.py` | the self-contained page: sites, zone, viewsheds, scenarios |
 
 ---
 

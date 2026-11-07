@@ -1,7 +1,7 @@
 [project]
 name = "pyro-visibility-analysis"
 version = "0.1.0"
-description = "Coverage and visibility-zone analysis for Pyronear camera sites, with GDAL and Python (QGIS for visualisation)"
+description = "Coverage and visibility-zone analysis for Pyronear camera sites, with GDAL and Python (QGIS or a standalone HTML page for visualisation)"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -11,13 +11,9 @@ dependencies = [
     "shapely",
     "numpy",
     "openpyxl",
+    "pillow",
     "rasterio",
     "elevation",
-    "folium",
-    "matplotlib",
-    "mapclassify",
-    "streamlit",
-    "streamlit-folium",
 ]
 
 [tool.uv]

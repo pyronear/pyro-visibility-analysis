@@ -1,0 +1,413 @@
+<!doctype html>
+<!-- Template filled by viewer.py, which replaces the DATA and LOGO placeholders in the
+     script with the region's data. Labels are in French because the end
+     client reads them. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Couverture Pyronear</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* Pyronear palette, from the partnership brief. */
+  :root {
+    --ink: #1f2a2b; --muted: #5b6b6c; --teal: #06474a; --green: #25806f;
+    --amber: #f5a623; --rust: #c4532f; --mist: #eaf3f1; --line: #d9e8e5; --cream: #fbf6ee;
+  }
+  body { margin: 0; display: flex; height: 100vh; font: 13px/1.45 Inter, system-ui, sans-serif; color: var(--ink); }
+  #side { width: 320px; display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; }
+  #side > section { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  #map { flex: 1; }
+  header { padding: 14px 14px 10px; }
+  header img { height: 22px; display: block; margin-bottom: 10px; }
+  .eyebrow { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  h1 { font: 700 19px/1.2 Poppins, Inter, sans-serif; margin: 2px 0 4px; color: var(--ink); }
+  h1 em, .accent { font-style: normal; color: var(--green); }
+  .muted { color: var(--muted); font-size: 12px; }
+  #stats { margin: 0 14px 10px; padding: 10px 12px; border-radius: 10px; background: var(--teal); color: #fff; }
+  #stats .row { display: flex; gap: 14px; }
+  #stats .row > div { flex: 1; }
+  .stat { font: 700 24px/1.1 Poppins, Inter, sans-serif; color: var(--amber); }
+  #stats .label { font-size: 12px; color: #d9e8e5; }
+  #stats .muted { color: #a9c4c0; font-size: 11px; margin-top: 6px; }
+  select, input[type=search] { width: 100%; box-sizing: border-box; margin: 3px 0; padding: 5px 8px;
+    font: inherit; color: var(--ink); border: 1px solid var(--line); border-radius: 6px; background: #fff; }
+  button { margin: 3px 4px 3px 0; padding: 4px 12px; font: 600 12px Inter, sans-serif; color: var(--teal);
+    background: #fff; border: 1px solid var(--teal); border-radius: 999px; cursor: pointer; }
+  button:hover { background: var(--mist); }
+  button.primary { background: var(--teal); color: #fff; }
+  button.primary:hover { background: var(--green); border-color: var(--green); }
+  label { cursor: pointer; }
+  input[type=checkbox], input[type=range] { accent-color: var(--green); }
+  #list { flex: 1; overflow-y: auto; padding: 4px 14px; }
+  #list h3 { font-size: 10.5px; letter-spacing: .12em; margin: 10px 0 3px; text-transform: uppercase; color: var(--rust); }
+  #list label { display: flex; align-items: center; gap: 5px; padding: 2px 4px; border-radius: 4px; }
+  #list label:hover { background: var(--mist); }
+  #list label[hidden] { display: none; }
+  #list label span.name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #list label span.seen { color: var(--muted); font-size: 11px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .legend { margin-top: 4px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; margin: 0 3px 0 6px; border-radius: 3px; vertical-align: -2px; }
+  .legend i:first-child { margin-left: 0; }
+  footer { padding: 10px 14px; background: var(--teal); color: #fff; font-size: 11.5px; }
+  footer b { font-family: Poppins, Inter, sans-serif; }
+  footer b span { color: var(--amber); }
+  footer a { color: #d9e8e5; text-decoration: none; }
+  .coverage { image-rendering: pixelated; }
+  .leaflet-container { font-family: Inter, system-ui, sans-serif; }
+  .leaflet-tooltip.site-label { background: #fffe; border: 0; box-shadow: none; padding: 0 4px; border-radius: 3px;
+    font-size: 11px; font-weight: 600; color: var(--teal); }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center; background: #fffd; z-index: 2000;
+    font: 600 16px Poppins, Inter, sans-serif; color: var(--teal); }
+  @media (max-width: 700px) { body { flex-direction: column; } #side { width: auto; height: 45vh; } }
+</style>
+</head>
+<body>
+<div id="side">
+  <header>
+    <img src="__LOGO__" alt="Pyronear">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1>Couverture <em>des caméras</em></h1>
+    <div class="muted" id="zone-name"></div>
+  </header>
+  <div id="stats">
+    <div class="row">
+      <div><div class="stat" id="cov">–</div><div class="label">de la zone couverte</div></div>
+      <div><div class="stat" id="tri">–</div><div class="label">triangulée</div></div>
+    </div>
+    <div class="muted" id="exact"></div>
+    <div class="muted" id="counts"></div>
+  </div>
+  <section>
+    <select id="scenario"><option value="">Sélection libre</option></select>
+    <button id="all">Tous</button><button id="none">Aucun</button><button id="deployed">En place</button>
+    <div><label><input type="checkbox" id="zone-only"> Zone d'enjeu seulement</label></div>
+    <div><label>Opacité <input type="range" id="opacity" min="0" max="1" step="0.05" value="0.6"></label></div>
+    <div class="legend muted">
+      <i style="background:#c4532f"></i>0 <i style="background:#f5a623"></i>1
+      <i style="background:#7cbfa3"></i>2 <i style="background:#25806f"></i>3+ caméras
+    </div>
+    <button id="export-geojson" class="primary">Exporter GeoJSON</button>
+  </section>
+  <section><input type="search" id="filter" placeholder="Filtrer les sites…"></section>
+  <div id="list"></div>
+  <footer>
+    <b>Ensemble, <span>luttons contre les feux de forêt.</span></b><br>
+    <a href="https://pyronear.org">pyronear.org</a> · <a href="https://github.com/pyronear">github.com/pyronear</a>
+  </footer>
+</div>
+<div id="map"></div>
+<div id="loading">Chargement des viewsheds…</div>
+<script>
+const DATA = __DATA__;
+
+// Pyronear palette, with the meaning of the QGIS project's colours: blue-ish
+// for installed cameras, green / orange / red by access cost; red, orange,
+// light and dark green for 0, 1, 2 and 3+ cameras.
+const CATEGORIES = {
+  'en place': ['Caméras en place', '#06474a'],
+  'public': ['Sites publics', '#25806f'],
+  'delegataire': ['Sites délégataires', '#f5a623'],
+  'operateur': ['Sites opérateurs', '#c4532f'],
+  'prive': ['Sites privés', '#c4532f'],
+};
+const COUNT_COLORS = [[196, 83, 47], [245, 166, 35], [124, 191, 163], [37, 128, 111]];
+const G = DATA.grid;
+const $ = id => document.getElementById(id);
+// Accent- and case-insensitive, for the site filter.
+const fold = s => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const fmt = (v, d = 1) => v.toLocaleString('fr-FR', {maximumFractionDigits: d, minimumFractionDigits: d});
+
+// --- Map and basemaps ---------------------------------------------------
+const map = L.map('map', {preferCanvas: true});
+const geopf = (layer, format, style = 'normal') => L.tileLayer(
+  'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+  `&LAYER=${layer}&STYLE=${style}&TILEMATRIXSET=PM&FORMAT=${format}` +
+  '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
+  {maxZoom: 19, attribution: '© IGN'});
+// The page is opened from disk (file://), so its tile requests carry no
+// Referer. tile.openstreetmap.org then answers, in some browsers, with a 403
+// « Access blocked » tile, and CARTO asks for an API key. The IGN Géoplateforme
+// serves them all: Plan IGN is the default, OSM stays for zones outside France.
+const basemaps = {
+  'Plan IGN': geopf('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'),
+  'Photo aérienne': geopf('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'),
+  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom: 19, attribution: '© OpenStreetMap'}),
+};
+basemaps['Plan IGN'].addTo(map);
+map.fitBounds(G.bounds);
+
+// --- Masks: each site's window, decoded once ----------------------------
+// A cell's ground area shrinks with latitude on a Mercator grid.
+const rowKm2 = new Float64Array(G.height);
+for (let r = 0; r < G.height; r++) {
+  const y = G.top - (r + 0.5) * G.res;
+  const lat = 2 * Math.atan(Math.exp(y / 6378137)) - Math.PI / 2;
+  rowKm2[r] = (G.res * Math.cos(lat)) ** 2 / 1e6;
+}
+
+async function decode(b64, w, h) {
+  const img = new Image();
+  img.src = 'data:image/png;base64,' + b64;
+  await img.decode();
+  const canvas = new OffscreenCanvas(w, h);
+  const ctx = canvas.getContext('2d', {willReadFrequently: true});
+  ctx.drawImage(img, 0, 0);
+  const rgba = ctx.getImageData(0, 0, w, h).data;
+  const out = new Uint8Array(w * h);
+  for (let i = 0; i < out.length; i++) out[i] = rgba[i * 4] > 127 ? 1 : 0;
+  return out;
+}
+
+const count = new Uint16Array(G.width * G.height);
+const selected = new Set();
+const byName = new Map(DATA.sites.map(s => [s.name, s]));
+let zoneMask;
+
+function addSite(site, sign) {
+  const [c0, r0, w, h] = site.window;
+  for (let r = 0; r < h; r++) {
+    const base = (r0 + r) * G.width + c0;
+    for (let c = 0; c < w; c++) if (site.bits[r * w + c]) count[base + c] += sign;
+  }
+}
+
+// Ground km² a site sees, in total and inside the zone.
+function siteKm2(site) {
+  const [c0, r0, w, h] = site.window;
+  let all = 0, zone = 0;
+  for (let r = 0; r < h; r++) {
+    for (let c = 0; c < w; c++) {
+      if (!site.bits[r * w + c]) continue;
+      all += rowKm2[r0 + r];
+      if (zoneMask[(r0 + r) * G.width + c0 + c]) zone += rowKm2[r0 + r];
+    }
+  }
+  return [all, zone];
+}
+
+// --- Coverage overlay ---------------------------------------------------
+const canvas = document.createElement('canvas');
+canvas.width = G.width; canvas.height = G.height;
+const ctx = canvas.getContext('2d');
+const image = ctx.createImageData(G.width, G.height);
+const overlay = L.imageOverlay('', G.bounds, {opacity: 0.6, className: 'coverage'}).addTo(map);
+let overlayUrl;
+
+function render() {
+  const zoneOnly = $('zone-only').checked;
+  const px = image.data;
+  let cov = 0, tri = 0, covAll = 0;
+  for (let r = 0; r < G.height; r++) {
+    const a = rowKm2[r];
+    for (let c = 0; c < G.width; c++) {
+      const i = r * G.width + c, n = count[i], inZone = zoneMask[i];
+      if (n >= 1) covAll += a;
+      if (inZone && n >= 1) cov += a;
+      if (inZone && n >= 2) tri += a;
+      // Outside zone-only mode, unseen cells stay transparent.
+      const show = zoneOnly ? inZone : n > 0;
+      const [R, Gr, B] = COUNT_COLORS[Math.min(n, 3)];
+      px[i * 4] = R; px[i * 4 + 1] = Gr; px[i * 4 + 2] = B; px[i * 4 + 3] = show ? 255 : 0;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  canvas.toBlob(blob => {
+    if (overlayUrl) URL.revokeObjectURL(overlayUrl);
+    overlayUrl = URL.createObjectURL(blob);
+    overlay.setUrl(overlayUrl);
+  });
+  // Percentages against the polygons' area, never the mask's (zones.py).
+  $('cov').textContent = fmt(100 * cov / DATA.zone.km2) + ' %';
+  $('tri').textContent = fmt(100 * tri / DATA.zone.km2) + ' %';
+  $('counts').textContent = `${selected.size} site(s) · ${fmt(covAll, 0)} km² vus au total ` +
+    `· approx. à ${G.res} m`;
+  // A ticked site is drawn full with its name always shown; an unticked one
+  // hollow, named on hover only.
+  for (const [name, m] of markers) {
+    const on = selected.has(name);
+    m.setStyle({weight: on ? 3 : 2, color: on ? '#1f2a2b' : '#8a9a9b', fillOpacity: on ? 1 : 0.15});
+    m.setRadius(on ? 8 : 6);
+    if (m.getTooltip().options.permanent !== on) {
+      m.unbindTooltip().bindTooltip(name, on ? LABEL : {});
+      if (on) m.openTooltip();
+    }
+  }
+  for (const box of document.querySelectorAll('#list input')) box.checked = selected.has(box.value);
+}
+
+function setSelection(names, scenario = '') {
+  for (const n of selected) addSite(byName.get(n), -1);
+  selected.clear();
+  // A scenario may name one site twice (two fragments, one site): count it once.
+  for (const n of new Set(names)) {
+    const site = byName.get(n);
+    if (site && site.bits) { selected.add(n); addSite(site, 1); }
+  }
+  $('scenario').value = scenario;
+  showExact();
+  render();
+}
+
+function toggle(name) {
+  const site = byName.get(name);
+  if (!site.bits) return;
+  const on = !selected.has(name);
+  on ? selected.add(name) : selected.delete(name);
+  addSite(site, on ? 1 : -1);
+  $('scenario').value = '';
+  showExact();
+  render();
+}
+
+function showExact() {
+  const s = DATA.scenarios.find(s => s.label === $('scenario').value);
+  $('exact').textContent = s && s.pct_couvert != null
+    ? `Calcul exact du scénario : ${fmt(s.pct_couvert)} % couvert · ${fmt(s.pct_triangule)} % triangulé`
+    : '';
+}
+
+// --- Sites: markers and side list ---------------------------------------
+const markers = new Map();
+const LABEL = {permanent: true, direction: 'right', offset: [8, 0], className: 'site-label'};
+const sitesLayer = L.layerGroup().addTo(map);
+
+function popup(site) {
+  const div = document.createElement('div');
+  const line = (label, value) => {
+    const p = document.createElement('div');
+    const b = document.createElement('b');
+    b.textContent = label + ' : ';
+    p.append(b, String(value));
+    div.append(p);
+  };
+  const title = document.createElement('b');
+  title.textContent = site.name;
+  div.append(title);
+  line('Gestionnaire', site.owner || '–');
+  line('Hauteur', site.height != null ? site.height + ' m' : '–');
+  line('Catégorie', (CATEGORIES[site.category] || [site.category])[0]);
+  if (site.bits) {
+    const [all, zone] = siteKm2(site);
+    line('Vu', `${fmt(all)} km², dont ${fmt(zone)} km² dans la zone`);
+  } else {
+    line('Viewshed', 'non calculé');
+  }
+  return div;
+}
+
+function buildList() {
+  const groups = {};
+  for (const s of DATA.sites) (groups[s.category] ||= []).push(s);
+  const order = [...Object.keys(CATEGORIES), ...Object.keys(groups)];
+  for (const cat of new Set(order)) {
+    if (!groups[cat]) continue;
+    const [label, color] = CATEGORIES[cat] || [cat, '#888'];
+    const h = document.createElement('h3');
+    h.textContent = `${label} (${groups[cat].length})`;
+    $('list').append(h);
+    for (const s of groups[cat].sort((a, b) => a.name.localeCompare(b.name))) {
+      const row = document.createElement('label');
+      row.dataset.name = fold(s.name);
+      const box = document.createElement('input');
+      box.type = 'checkbox'; box.value = s.name; box.disabled = !s.bits;
+      box.addEventListener('change', () => toggle(s.name));
+      const dot = document.createElement('span');
+      dot.className = 'dot'; dot.style.background = color;
+      const name = document.createElement('span');
+      name.className = 'name'; name.textContent = s.name;
+      name.title = s.bits ? s.name : s.name + ' (pas de viewshed)';
+      // Share of the zone this site sees on its own.
+      const seen = document.createElement('span');
+      seen.className = 'seen';
+      if (s.bits) seen.textContent = fmt(100 * siteKm2(s)[1] / DATA.zone.km2, 0) + ' %';
+      seen.title = "Part de la zone d'enjeu vue par ce site seul";
+      name.addEventListener('click', e => {
+        e.preventDefault();
+        map.panTo([s.lat, s.lon]);
+        markers.get(s.name).openPopup();
+      });
+      row.append(box, dot, name, seen);
+      $('list').append(row);
+
+      const m = L.circleMarker([s.lat, s.lon], {radius: 6, fillColor: color, fillOpacity: 1,
+                                                color: '#fff', weight: 1})
+        .bindTooltip(s.name)
+        .bindPopup(() => popup(s))
+        .on('click', () => toggle(s.name))
+        .addTo(sitesLayer);
+      markers.set(s.name, m);
+    }
+  }
+}
+
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name;
+  a.click();
+}
+
+// --- Start --------------------------------------------------------------
+(async () => {
+  $('eyebrow').textContent = `Étude de couverture · ${DATA.region}`;
+  $('zone-name').textContent = `Zone d'enjeu : ${DATA.zone.name} (${fmt(DATA.zone.km2, 0)} km²)`;
+  zoneMask = await decode(DATA.zone.mask, G.width, G.height);
+  for (const s of DATA.sites) if (s.mask) s.bits = await decode(s.mask, s.window[2], s.window[3]);
+
+  const zoneLayer = L.geoJSON(DATA.zone.outline, {style: {color: '#d0127a', weight: 2, fill: false}}).addTo(map);
+  const overlays = {'Couverture': overlay, "Zone d'enjeu": zoneLayer, 'Sites': sitesLayer};
+  if (DATA.dept) {
+    overlays['Département'] = L.geoJSON(DATA.dept, {interactive: false,
+      style: {color: '#1f2a2b', weight: 2.5, dashArray: '8 5', fill: false}}).addTo(map);
+  }
+  L.control.layers(basemaps, overlays).addTo(map);
+  // Frame what was computed — the zone and its sites — not the whole DEM.
+  const frame = zoneLayer.getBounds();
+  for (const s of DATA.sites) frame.extend([s.lat, s.lon]);
+  map.fitBounds(frame, {padding: [20, 20]});
+  sitesLayer.bringToFront?.();
+
+  for (const s of DATA.scenarios) {
+    const o = document.createElement('option');
+    o.value = s.label; o.textContent = `${s.label} (${s.sites.length} sites)`;
+    $('scenario').append(o);
+  }
+  $('scenario').addEventListener('change', e => {
+    const s = DATA.scenarios.find(s => s.label === e.target.value);
+    if (s) setSelection(s.sites, s.label);
+  });
+  const deployed = () => DATA.sites.filter(s => s.deployed).map(s => s.name);
+  $('all').onclick = () => setSelection(DATA.sites.map(s => s.name));
+  $('none').onclick = () => setSelection([]);
+  $('deployed').onclick = () => setSelection(deployed());
+  $('zone-only').onchange = render;
+  $('opacity').oninput = e => overlay.setOpacity(+e.target.value);
+  $('filter').oninput = e => {
+    const q = fold(e.target.value);
+    for (const row of document.querySelectorAll('#list label')) row.hidden = !row.dataset.name.includes(q);
+  };
+  $('export-geojson').onclick = () => download(`selection-${DATA.region}.geojson`, JSON.stringify({
+    type: 'FeatureCollection',
+    features: [...selected].map(n => byName.get(n)).map(s => ({
+      type: 'Feature',
+      geometry: {type: 'Point', coordinates: [s.lon, s.lat]},
+      properties: {Name: s.name, Owner: s.owner, Height: s.height, categorie: s.category},
+    })),
+  }, null, 1), 'application/geo+json');
+
+  buildList();
+  const start = deployed();
+  setSelection(start.length ? start : DATA.sites.map(s => s.name));
+  $('loading').remove();
+})();
+</script>
+</body>
+</html>
