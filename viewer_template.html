@@ -83,13 +83,17 @@ const geopf = (layer, format, style = 'normal') => L.tileLayer(
   `&LAYER=${layer}&STYLE=${style}&TILEMATRIXSET=PM&FORMAT=${format}` +
   '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',
   {maxZoom: 19, attribution: '© IGN'});
+// The page is opened from disk (file://), so its tile requests carry no
+// Referer. tile.openstreetmap.org then answers, in some browsers, with a 403
+// « Access blocked » tile, and CARTO asks for an API key. The IGN Géoplateforme
+// serves them all: Plan IGN is the default, OSM stays for zones outside France.
 const basemaps = {
-  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {maxZoom: 19, attribution: '© OpenStreetMap'}),
   'Plan IGN': geopf('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2', 'image/png'),
   'Photo aérienne': geopf('ORTHOIMAGERY.ORTHOPHOTOS', 'image/jpeg'),
+  'OpenStreetMap': L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom: 19, attribution: '© OpenStreetMap'}),
 };
-basemaps['OpenStreetMap'].addTo(map);
+basemaps['Plan IGN'].addTo(map);
 map.fitBounds(G.bounds);
 
 // --- Masks: each site's window, decoded once ----------------------------

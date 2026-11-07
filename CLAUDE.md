@@ -199,6 +199,12 @@ not 9: level 9 made the write eight times slower than GDAL itself. Merges work
 overlap matrix nobody read, re-reading two full rasters per pair. It is gone;
 `output.csv` keeps `Site`, `Surface`, `% du total`.
 
+**OpenStreetMap tiles in `viewer.html`.** The page is opened from disk
+(`file://`), so its tile requests carry no Referer: `tile.openstreetmap.org`
+answers, in some browsers, with a 403 « Access blocked » tile on every tile,
+and CARTO asks for an API key. Plan IGN (Géoplateforme, no key) is the default;
+OSM stays as an option for zones outside France.
+
 ---
 
 ## Method decisions
