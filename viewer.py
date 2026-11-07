@@ -53,6 +53,7 @@ from summary import detection_radius  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(HERE, "viewer_template.html")
+LOGO = os.path.join(HERE, "viewer_logo.png")
 L93 = CRS.from_epsg(2154)
 WEB = CRS.from_epsg(3857)
 # Never a value of a viewshed mask (0/1, or 255 in some old ones).
@@ -260,6 +261,10 @@ def main():
     # « </ » would close the <script> block early if a name carried one.
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     page = page.replace("__DATA__", payload)
+    # Inlined, like the data, so the page stays one file.
+    with open(LOGO, "rb") as handle:
+        logo = base64.b64encode(handle.read()).decode("ascii")
+    page = page.replace("__LOGO__", f"data:image/png;base64,{logo}")
     out = os.path.join("data", args.region, "output", "viewer.html")
     with open(out, "w", encoding="utf-8") as handle:
         handle.write(page)
