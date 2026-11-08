@@ -73,6 +73,12 @@ from config import REGION  # noqa: E402
 
 WFS = "https://data.geopf.fr/wfs/ows"
 FORESTS = "BDTOPO_V3:foret_publique"
+OLD = "DEBROUSSAILLEMENT:debroussaillement"
+
+# WFS paging is only stable on a sorted request: without SORTBY the server
+# may return pages in any order, duplicating or dropping features silently.
+# One unique identifier per known layer.
+SORT_FIELDS = {FORESTS: "cleabs", OLD: "id"}
 
 # `where` filters on attributes, after the request; `dept_field` lets the
 # server select a département's polygons instead of a bounding box, which
@@ -80,7 +86,7 @@ FORESTS = "BDTOPO_V3:foret_publique"
 SOURCES = {
     "forets-publiques": {"layer": FORESTS},
     "forets-domaniales": {"layer": FORESTS, "where": {"nature": "Forêt domaniale"}},
-    "old": {"layer": "DEBROUSSAILLEMENT:debroussaillement", "dept_field": "dept"},
+    "old": {"layer": OLD, "dept_field": "dept"},
 }
 DEFAULT_SOURCE = "forets-publiques"
 
@@ -91,12 +97,18 @@ PAGE = 5000
 def get_features(layer, **params):
     frames = []
     start = 0
+    sort_field = SORT_FIELDS.get(layer)
     while True:
         query = {
             "SERVICE": "WFS", "REQUEST": "GetFeature", "VERSION": "2.0.0",
             "TYPENAMES": layer, "OUTPUTFORMAT": "application/json",
             "SRSNAME": "EPSG:2154", "COUNT": PAGE, "STARTINDEX": start, **params,
         }
+        if sort_field:
+            query["SORTBY"] = sort_field
+        elif start == PAGE:
+            print(f"⚠️  {layer}: more than {PAGE} features and no known sort "
+                  f"field, page order is not guaranteed — add one to SORT_FIELDS")
         url = f"{WFS}?{urllib.parse.urlencode(query)}"
         with urllib.request.urlopen(url, timeout=120) as response:
             data = json.load(response)
@@ -139,7 +151,10 @@ def by_dept(region, layer, dept, dept_field=None):
                                        f"urn:ogc:def:crs:EPSG::2154")
     if gdf.empty:
         return gdf
-    gdf = gpd.clip(gdf, outline)
+    # A neighbouring polygon that only touches the border clips to a line or a
+    # point: it would be rasterised as zone cells with no area to count them
+    # against. Keep polygons only; main() fails if nothing is left.
+    gdf = gpd.clip(gdf, outline, keep_geom_type=True)
     return gdf[~gdf.geometry.is_empty]
 
 
@@ -215,7 +230,9 @@ def main():
             sources = str(row.get("identifiants_sources") or "")
             onf = next((s.split(":", 1)[1] for s in sources.split("/")
                         if s.strip().startswith("ONF:")), None)
-            key = (row[toponym] or "(no toponym)", onf)
+            name = row[toponym]
+            key = (name if isinstance(name, str) and name.strip()
+                   else "(no toponym)", onf)
             rows[key] = rows.get(key, 0.0) + row.geometry.area / 1e6
         for (name, onf), km2 in sorted(rows.items(), key=lambda kv: -kv[1]):
             print(f"   {name} — {km2:,.1f} km²" + (f" — --onf {onf}" if onf else ""))
