@@ -16,11 +16,13 @@ Two sources, merged into one list of structures:
                 as PUBLIC (a commune or a water syndicate), to be corrected by
                 hand when a survey says otherwise.
 
-A water tower that does carry antennas is in both. An ANFR support within
-`--doublon` of a BD TOPO tower is that tower: one entry is kept, with the BD
-TOPO position and height — the structure itself, where ANFR's `SUP_NM_HAUT`
-includes the antenna mast and its coordinates are whole DMS seconds (~30 m) —
-and the ANFR identifier and owner.
+A water tower that does carry antennas is in both. An ANFR support registered
+as a water tower within `--doublon` of a BD TOPO tower is that tower: one
+entry is kept, with the BD TOPO position and height — the structure itself,
+where ANFR's `SUP_NM_HAUT` includes the antenna mast and its coordinates are
+whole DMS seconds (~30 m) — and the ANFR identifier and owner. A support of
+another kind that close (a pylon at the foot of the tower) stays a separate
+entry.
 
 The register is exhaustive but far too large to viewshed blindly — 1 739
 supports in a single département. This narrows the list down in four passes,
@@ -245,31 +247,38 @@ def load_water_towers(bounds, inside):
 def merge_water_towers(supports, towers, gap_m):
     """One entry per structure, whichever source lists it.
 
-    The ANFR supports within `gap_m` of a tower are that tower: the nearest
-    keeps its identifier and owner and takes the tower's position, height and
-    kind; any other one is the same structure listed twice, and goes.
+    An ANFR support registered as a water tower within `gap_m` of a BD TOPO
+    tower is that tower — of its nearest one, when two towers stand side by
+    side. The nearest support keeps its identifier and owner and takes the
+    tower's position and height; any other one is the same structure listed
+    twice, and goes. A support of another kind stays as it is, next to the
+    tower: a 60 m pylon at the foot of a 25 m water tower is not that tower.
     """
-    merged, dropped = 0, set()
-    out = list(supports)
-    for tower in towers:
-        same = sorted(
-            ((math.hypot(s["x"] - tower["x"], s["y"] - tower["y"]), i)
-             for i, s in enumerate(out)
-             if s["source"] == "anfr" and i not in dropped),
-            key=lambda pair: pair[0])
-        same = [i for d, i in same if d <= gap_m]
-        if not same:
-            out.append(tower)
+    by_tower = {}
+    for i, support in enumerate(supports):
+        if support["source"] != "anfr" or support["nat_id"] != NAT_CHATEAU_EAU:
             continue
-        keep = out[same[0]]
-        keep.update({k: tower[k] for k in ("lat", "lon", "x", "y", "hauteur", "nat_id")})
+        dist, t = min(
+            ((math.hypot(support["x"] - tower["x"], support["y"] - tower["y"]), t)
+             for t, tower in enumerate(towers)),
+            default=(None, None))
+        if dist is not None and dist <= gap_m:
+            by_tower.setdefault(t, []).append((dist, i))
+
+    dropped, new = set(), []
+    for t, tower in enumerate(towers):
+        same = [i for _, i in sorted(by_tower.get(t, []))]
+        if not same:
+            new.append(tower)
+            continue
+        keep = supports[same[0]]
+        keep.update({k: tower[k] for k in ("lat", "lon", "x", "y", "hauteur")})
         keep["source"] = "anfr+bdtopo"
         dropped.update(same[1:])
-        merged += 1
-    out = [s for i, s in enumerate(out) if i not in dropped]
-    print(f"  {len(towers)} BD TOPO water towers: {merged} already in ANFR "
+    out = [s for i, s in enumerate(supports) if i not in dropped] + new
+    print(f"  {len(towers)} BD TOPO water towers: {len(by_tower)} already in ANFR "
           f"(merged, {len(dropped)} duplicate support(s) dropped), "
-          f"{len(towers) - merged} new")
+          f"{len(new)} new")
     return out
 
 
@@ -424,8 +433,8 @@ def main():
                         help=f"comma-separated, among {', '.join(SOURCES)} "
                              f"(default: both)")
     parser.add_argument("--doublon", type=float, default=50.0,
-                        help="an ANFR support this close to a BD TOPO water tower "
-                             "is that tower (m)")
+                        help="an ANFR water tower this close to a BD TOPO water "
+                             "tower is that tower (m)")
     parser.add_argument("--anfr", type=Path,
                         default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson")
     parser.add_argument("--refs", type=Path,
@@ -500,25 +509,29 @@ def main():
         tower_inside = near
     else:
         print(f"▶ {' + '.join(sources)}, département {args.dept}")
-        # ANFR supports are sorted by INSEE code; towers have none, so the
-        # département outline decides for them.
-        outline = _dept_gdf(args.region, args.dept).to_crs("EPSG:2154").geometry.union_all()
-        tower_bounds, inside_outline = outline.bounds, prep(outline)
-
-        def tower_inside(x, y):
-            return inside_outline.contains(Point(x, y))
 
     supports = []
     if "anfr" in sources:
         supports = load_supports(args.anfr, args.dept, near)
         print(f"  {len(supports)} distinct ANFR supports")
     if "chateaux-eau" in sources:
-        if around is not None and args.dept:
-            # --dept narrows the ANFR pool by INSEE code; do the same for towers.
-            in_dept = prep(_dept_gdf(args.region, args.dept)
-                           .to_crs("EPSG:2154").geometry.union_all())
-            tower_inside = (lambda x, y, near=near:
-                            near(x, y) and in_dept.contains(Point(x, y)))
+        if args.dept:
+            # ANFR supports are sorted by INSEE code; towers have none, so the
+            # département outline decides for them. Fetched here only: the
+            # ANFR source alone never needs it.
+            outline = (_dept_gdf(args.region, args.dept)
+                       .to_crs("EPSG:2154").geometry.union_all())
+            in_dept = prep(outline)
+            if around is None:
+                tower_bounds = outline.bounds
+
+                def tower_inside(x, y):
+                    return in_dept.contains(Point(x, y))
+            else:
+                # --dept narrows the ANFR pool by INSEE code; do the same
+                # for towers.
+                def tower_inside(x, y):
+                    return near(x, y) and in_dept.contains(Point(x, y))
         towers = load_water_towers(tower_bounds, tower_inside)
         supports = merge_water_towers(supports, towers, args.doublon)
 
