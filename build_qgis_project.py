@@ -247,21 +247,26 @@ def main():
         print(f'   scenarios filtered on {_wanted}: '
               f'{", ".join(os.path.basename(f) for f in folders)}')
 
-    def add_scenario_sites(folder, group):
-        """The scenario's own sites, written by scenario_layers.py."""
+    def add_scenario_sites(folder, group, title):
+        """The scenario's own sites, written by scenario_layers.py.
+
+        Returns None once added, else what is wrong with sites.gpkg.
+        """
         path = os.path.join(folder, 'sites.gpkg')
         if not os.path.exists(path):
-            return False
-        points = QgsVectorLayer(f'{path}|layername=sites', 'Sites du scénario',
+            return 'missing'
+        # Named after the scenario: every points layer would otherwise read
+        # the same in the attribute table and in identify results.
+        points = QgsVectorLayer(f'{path}|layername=sites', f'Sites — {title}',
                                 'ogr')
         if not points.isValid():
-            return False
+            return 'invalid'
         style_sites(points, star=True)
         project.addMapLayer(points, False)
         group.addLayer(points)
-        return True
+        return None
 
-    missing_points = []
+    missing_points, invalid_points = [], []
     for folder in folders:
         label = os.path.basename(folder).replace('scenario_', '')
         meta_path = os.path.join(folder, 'meta.json')
@@ -297,14 +302,21 @@ def main():
                 (g_scen, zone_raster, name),
                 (g_tot, os.path.join(folder, 'couverture_zone.tif'), total_name)):
             sub = group.addGroup(title)
-            if not add_scenario_sites(folder, sub) and group is g_scen:
+            problem = add_scenario_sites(folder, sub, title)
+            if group is g_scen and problem == 'missing':
                 missing_points.append(label)
+            elif group is g_scen and problem == 'invalid':
+                invalid_points.append(label)
             add_raster(raster, title, sub, visible=True, opacity=0.75,
                        abstract=abstract)
             sub.setExpanded(False)
     if missing_points:
         print(f'   ⚠️  no sites.gpkg for {", ".join(missing_points)} — rerun '
               f'scenario_layers.py to get one points layer per scenario')
+    if invalid_points:
+        print(f'   ⚠️  sites.gpkg unreadable for {", ".join(invalid_points)} '
+              f'(no valid « sites » layer) — delete it and rerun '
+              f'scenario_layers.py')
     # One scenario at a time: ticking one unticks the previous one. The first
     # zone-of-interest scenario starts visible, no total-coverage one.
     if folders:
