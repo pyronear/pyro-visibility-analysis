@@ -174,7 +174,7 @@ def polygonize_viewshed(input_tif, site_name, min_polygon_area=MIN_POLYGON_AREA,
 
     # A 5 m MNS viewshed is riddled with single-tree holes: ~90 000 polygons per
     # site, most of them a handful of pixels. Keeping them makes the GeoPackage
-    # unusable — folium cannot render it and even reading it back is slow —
+    # unusable — even reading it back is slow —
     # while contributing almost nothing: dropping everything under 500 m² (a
     # 22 x 22 m patch) removes 96 % of the polygons for 0.5 % of the area.
     if min_polygon_area:
@@ -240,8 +240,7 @@ def main():
     parser.add_argument(
         "--kmz", action="store_true",
         help="also write one Google Earth KMZ ground overlay per site. Off by "
-             "default: it is the expensive part and is not needed by "
-             "visualize.py, which reads the GeoPackage.")
+             "default: it is the expensive part.")
     parser.add_argument(
         "--min-polygon-area", type=float, default=MIN_POLYGON_AREA,
         help=f"drop polygons smaller than this, in m² (default "
