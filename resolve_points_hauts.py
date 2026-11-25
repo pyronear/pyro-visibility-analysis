@@ -57,7 +57,7 @@ import rasterio
 from pyproj import Transformer
 from shapely.geometry import shape, Point
 
-from analysis_shape.anfr import latest_export, read_supports, SUPPORTS
+from analysis_shape.anfr import default_supports, read_supports
 
 from analysis_shape.zones import region_dept
 
@@ -701,6 +701,13 @@ def main() -> None:
     if not args.dept:
         raise SystemExit(f"❌ no département: set \"dept\" in "
                          f"data/{args.region}/scenarios.json, or pass --dept")
+    # Before anything is fetched: stops with the command to run when there is
+    # no export, warns when the newest one is old (analysis_shape/anfr.py).
+    args.anfr = default_supports(args.anfr)
+    if not args.anfr.exists():
+        raise SystemExit(f"❌ ANFR export not found: {args.anfr} — fetch the "
+                         f"latest one with: make anfr")
+    print(f"  ANFR export: {args.anfr}")
     outdir = REPO / "data" / args.region
     outdir.mkdir(parents=True, exist_ok=True)
     COMMUNE_ALIAS.update(load_commune_alias(outdir / "commune_alias.json"))
@@ -714,12 +721,10 @@ def main() -> None:
     print("▶ reference datasets")
     communes_index, communes = load_communes(args.dept)
     bdtopo = load_bdtopo(communes)
-    if args.anfr is None and (folder := latest_export()):
-        args.anfr = folder / SUPPORTS
-    anfr = load_anfr(args.anfr, args.dept) if args.anfr and args.anfr.exists() else []
+    anfr = load_anfr(args.anfr, args.dept)
     if not anfr:
-        print(f"  ! ANFR export missing ({args.anfr}) — no height cross-check",
-              file=sys.stderr)
+        print(f"  ! no ANFR support in département {args.dept} in {args.anfr} "
+              f"— no height cross-check", file=sys.stderr)
 
     print("▶ resolution")
     resolved = [resolve_row(row, communes_index, bdtopo, anfr, args.hauteur)

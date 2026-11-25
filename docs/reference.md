@@ -121,7 +121,8 @@ than six months old. An export two years old had no pylon at all under
 Hivory or Totem, and some of theirs passed for public.
 
 **Useful options:** `--sources`, `--doublon`, `--anfr`, `--refs` (ANFR
-files; default the newest `data/anfr/` export), `--top`, `--ecart`
+files; default the newest `data/anfr/` export, and for `--refs` the folder of
+`--anfr`, so both come from the same export), `--top`, `--ecart`
 (minimum spacing between candidates, m), `--max-operateurs` (cap on `PRIVE`
 supports), `--publics-seulement` (`PUBLIC` and `RESEAU` only).
 

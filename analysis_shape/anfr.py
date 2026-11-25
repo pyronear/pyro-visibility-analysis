@@ -20,6 +20,7 @@ import csv
 import datetime
 import json
 import os
+import tempfile
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -29,46 +30,80 @@ ANFR_DIR = REPO / "data" / "anfr"
 DATASET_API = ("https://www.data.gouv.fr/api/1/datasets/"
                "donnees-sur-les-installations-radioelectriques-de-plus-de-5-watts-1/")
 SUPPORTS = "SUP_SUPPORT.txt"
-REFERENCES = ("SUP_NATURE.txt", "SUP_PROPRIETAIRE.txt", "SUP_EXPLOITANT.txt",
-              "SUP_TYPE_ANTENNE.txt")
+# The reference tables the scripts read; the zip holds others.
+REFERENCES = ("SUP_NATURE.txt", "SUP_PROPRIETAIRE.txt")
 
 # Older than this, a warning: owners have moved since.
 STALE_DAYS = 180
 
 
+def has_references(folder):
+    return all((Path(folder) / name).exists() for name in REFERENCES)
+
+
 def latest_export():
-    """The newest `data/anfr/<date>/` holding the supports, or None."""
+    """The newest complete `data/anfr/<date>/`, or None.
+
+    Complete means the supports and the reference tables: a folder left
+    half-filled by an interrupted download is not an export.
+    """
     if not ANFR_DIR.is_dir():
         return None
-    folders = sorted(p for p in ANFR_DIR.iterdir() if (p / SUPPORTS).exists())
+    folders = sorted(p for p in ANFR_DIR.iterdir()
+                     if not p.name.startswith(".")
+                     and (p / SUPPORTS).exists() and has_references(p))
     return folders[-1] if folders else None
 
 
-def default_paths(anfr=None, refs=None):
-    """(supports file, reference folder): the arguments, else the newest export.
+def default_supports(anfr=None):
+    """The supports file: the argument, else the newest export's.
 
     Exits with the command to run when there is no export at all, and warns
     when the newest one is old.
     """
+    if anfr is not None:
+        return Path(anfr)
     folder = latest_export()
-    if anfr is None or refs is None:
-        if folder is None:
-            raise SystemExit(
-                "❌ no ANFR export in data/anfr/ — fetch the latest one with: "
-                "make anfr  (or uv run python fetch_anfr.py)")
-        age = (datetime.date.today()
-               - datetime.date.fromisoformat(folder.name[:10])).days
-        if age > STALE_DAYS:
-            print(f"⚠️  ANFR export of {folder.name}, {age} days old: owners may "
-                  f"have changed since — make anfr fetches the latest")
-    return (Path(anfr) if anfr else folder / SUPPORTS,
-            Path(refs) if refs else folder)
+    if folder is None:
+        raise SystemExit(
+            "❌ no ANFR export in data/anfr/ — fetch the latest one with: "
+            "make anfr  (or uv run python fetch_anfr.py)")
+    age = (datetime.date.today()
+           - datetime.date.fromisoformat(folder.name[:10])).days
+    if age > STALE_DAYS:
+        print(f"⚠️  ANFR export of {folder.name}, {age} days old: owners may "
+              f"have changed since — make anfr fetches the latest")
+    return folder / SUPPORTS
+
+
+def default_paths(anfr=None, refs=None):
+    """(supports file, reference folder).
+
+    The reference tables default to the folder of the supports file, so both
+    come from the same export. A supports file standing alone (a former
+    .geojson) falls back on the newest export's tables, and says so.
+    """
+    anfr = default_supports(anfr)
+    if refs is not None:
+        return anfr, Path(refs)
+    if has_references(anfr.parent):
+        return anfr, anfr.parent
+    folder = latest_export()
+    if folder is None:
+        raise SystemExit(
+            f"❌ no {' / '.join(REFERENCES)} next to {anfr}: pass --refs, or "
+            f"fetch an export with: make anfr")
+    print(f"⚠️  no reference tables next to {anfr.name}: read from the "
+          f"{folder.name} export — pass --refs to choose another")
+    return anfr, folder
 
 
 def fetch_latest():
     """Download the latest export into data/anfr/<date>/ and return the folder.
 
-    Nothing is downloaded when that folder is already complete.
+    Nothing is downloaded when that folder is already complete. The archives
+    are downloaded and unpacked in a temporary folder, and the files moved in
+    only once all are there: an interrupted run leaves no half-filled export.
     """
     with urllib.request.urlopen(DATASET_API, timeout=60) as response:
         resources = json.load(response)["resources"]
@@ -77,18 +112,23 @@ def fetch_latest():
     ref = max((r for r in resources if r["url"].endswith("export-etalab-ref.zip")),
               key=lambda r: r["last_modified"])
     folder = ANFR_DIR / data["last_modified"][:10]
-    if all((folder / name).exists() for name in (SUPPORTS, *REFERENCES)):
+    if (folder / SUPPORTS).exists() and has_references(folder):
         print(f"✅ {folder.relative_to(REPO)} is already the latest export")
         return folder
-    folder.mkdir(parents=True, exist_ok=True)
-    for resource, wanted in ((data, (SUPPORTS,)), (ref, REFERENCES)):
-        archive = folder / os.path.basename(resource["url"])
-        print(f"   downloading {resource['title']} ({resource['url']})")
-        urllib.request.urlretrieve(resource["url"], archive)
-        with zipfile.ZipFile(archive) as zf:
-            for name in wanted:
-                zf.extract(name, folder)
-        archive.unlink()
+    ANFR_DIR.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=ANFR_DIR, prefix=".partial-") as tmp:
+        tmp = Path(tmp)
+        for resource, wanted in ((data, (SUPPORTS,)), (ref, REFERENCES)):
+            archive = tmp / os.path.basename(resource["url"])
+            print(f"   downloading {resource['title']} ({resource['url']})")
+            urllib.request.urlretrieve(resource["url"], archive)
+            with zipfile.ZipFile(archive) as zf:
+                for name in wanted:
+                    zf.extract(name, tmp)
+        folder.mkdir(exist_ok=True)
+        # The supports last: their presence is what the tables are checked with.
+        for name in (*REFERENCES, SUPPORTS):
+            os.replace(tmp / name, folder / name)
     print(f"✅ {folder.relative_to(REPO)}")
     return folder
 
