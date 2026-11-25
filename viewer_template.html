@@ -362,7 +362,9 @@ function download(name, text, type) {
   zoneMask = await decode(DATA.zone.mask, G.width, G.height);
   for (const s of DATA.sites) if (s.mask) s.bits = await decode(s.mask, s.window[2], s.window[3]);
 
-  const zoneLayer = L.geoJSON(DATA.zone.outline, {style: {color: '#d0127a', weight: 2, fill: false}}).addTo(map);
+  // Off by default: a zone made of many polygons (BD Forêt) hides the map;
+  // the layer menu shows it on demand.
+  const zoneLayer = L.geoJSON(DATA.zone.outline, {style: {color: '#d0127a', weight: 2, fill: false}});
   const overlays = {'Couverture': overlay, "Zone d'enjeu": zoneLayer, 'Sites': sitesLayer};
   if (DATA.dept) {
     overlays['Département'] = L.geoJSON(DATA.dept, {interactive: false,
