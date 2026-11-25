@@ -95,6 +95,7 @@ already in `sites.csv`, ranked by the uncovered zone area within detection
 range. The score ignores terrain: it sorts, real viewsheds decide.
 
 ```bash
+make candidates REGION=<region>                                      # defaults
 uv run python find_candidates.py --region <region> --top 25 --max-operateurs 10
 uv run python find_candidates.py --region <region> --sources anfr   # ANFR only
 ```
@@ -144,7 +145,8 @@ Needs neither a département nor an earlier viewshed: it is the **first** step
 of such a region.
 
 ```bash
-uv run python find_candidates.py --region <region> --around-zone <zone>
+make candidates REGION=<region> AROUND=<zone>
+# or: uv run python find_candidates.py --region <region> --around-zone <zone>
 cp data/<region>/candidats.csv data/<region>/sites.csv   # empty region
 ```
 

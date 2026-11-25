@@ -23,11 +23,12 @@ POINT   ?=
 ONF     ?=
 SOURCE  ?=
 DEPT    ?=
+AROUND  ?=
 
 R := $(if $(REGION),--region $(REGION))
 
 .DEFAULT_GOAL := help
-.PHONY: help gdal-check anfr zone audit dem viewsheds summary prioritise scenarios \
+.PHONY: help gdal-check anfr zone candidates audit dem viewsheds summary prioritise scenarios \
         scenarios-md viewer package analyse
 
 help: ## List the targets
@@ -35,18 +36,24 @@ help: ## List the targets
 	  awk 'BEGIN {FS = ":.*## "} {printf "  make %-13s %s\n", $$1, $$2}'
 	@echo "  Variables: REGION=<region> ZONES=$(ZONES) PICKS=$(PICKS) FREEZE=1 PROJECT=<x>.qgz RES=$(RES)"
 	@echo "             NAME=<zone> POINT=<lat>,<lon> | ONF=<id> | DEPT=<NN> SOURCE=<source> (make zone)"
+	@echo "             AROUND=<zone> (make candidates)"
 
 gdal-check: ## Check gdal_viewshed (pulls the Docker image the first time)
 	@$(PY) -m analysis_shape.gdal_viewshed
 
-# Without POINT or ONF, the whole département: DEPT, else scenarios.json's.
 anfr: ## Download the latest ANFR register into data/anfr/<date>/
 	$(PY) fetch_anfr.py
 
+# Without POINT or ONF, the whole département: DEPT, else scenarios.json's.
 zone: ## Fetch a zone of interest (NAME=<zone>; POINT, ONF or the département; SOURCE)
 	@test -n "$(NAME)" || { echo "❌ NAME=<zone> is required"; exit 1; }
 	$(PY) fetch_zone.py $(R) --name $(NAME) $(if $(SOURCE),--source $(SOURCE)) \
 	  $(if $(POINT),--point $(POINT),$(if $(ONF),--onf $(ONF),--dept $(DEPT)))
+
+# Without AROUND, the gaps of the département; with it, every support in
+# range of that zone. Any other option: run find_candidates.py directly.
+candidates: ## New high points → candidats.csv (AROUND=<zone> for one small zone)
+	$(PY) find_candidates.py $(R) $(if $(AROUND),--around-zone $(AROUND))
 
 audit: ## Check declared site heights against Lidar HD
 	$(PY) audit_sites.py $(R)
