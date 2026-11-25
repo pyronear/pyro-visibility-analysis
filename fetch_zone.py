@@ -54,31 +54,22 @@ read when there is none. A zone fetched again replaces the previous file.
 """
 
 import argparse
-import json
 import os
-import urllib.parse
-import urllib.request
 
 from proj_env import use_bundled_proj
 
 use_bundled_proj()  # must precede pyproj/geopandas imports
 
 import geopandas as gpd  # noqa: E402
-import pandas as pd  # noqa: E402
 from pyproj import Transformer  # noqa: E402
 from shapely.geometry import Point  # noqa: E402
 
+from analysis_shape.wfs import bbox_l93, get_features  # noqa: E402
 from analysis_shape.zones import _dept_gdf, _normalise_dept, region_dept  # noqa: E402
 from config import REGION  # noqa: E402
 
-WFS = "https://data.geopf.fr/wfs/ows"
 FORESTS = "BDTOPO_V3:foret_publique"
 OLD = "DEBROUSSAILLEMENT:debroussaillement"
-
-# WFS paging is only stable on a sorted request: without SORTBY the server
-# may return pages in any order, duplicating or dropping features silently.
-# One unique identifier per known layer.
-SORT_FIELDS = {FORESTS: "cleabs", OLD: "id"}
 
 # `where` filters on attributes, after the request; `dept_field` lets the
 # server select a département's polygons instead of a bounding box, which
@@ -89,38 +80,6 @@ SOURCES = {
     "old": {"layer": OLD, "dept_field": "dept"},
 }
 DEFAULT_SOURCE = "forets-publiques"
-
-# The server's cap on one GetFeature response; larger results come in pages.
-PAGE = 5000
-
-
-def get_features(layer, **params):
-    frames = []
-    start = 0
-    sort_field = SORT_FIELDS.get(layer)
-    while True:
-        query = {
-            "SERVICE": "WFS", "REQUEST": "GetFeature", "VERSION": "2.0.0",
-            "TYPENAMES": layer, "OUTPUTFORMAT": "application/json",
-            "SRSNAME": "EPSG:2154", "COUNT": PAGE, "STARTINDEX": start, **params,
-        }
-        if sort_field:
-            query["SORTBY"] = sort_field
-        elif start == PAGE:
-            print(f"⚠️  {layer}: more than {PAGE} features and no known sort "
-                  f"field, page order is not guaranteed — add one to SORT_FIELDS")
-        url = f"{WFS}?{urllib.parse.urlencode(query)}"
-        with urllib.request.urlopen(url, timeout=120) as response:
-            data = json.load(response)
-        features = data.get("features") or []
-        if features:
-            frames.append(gpd.GeoDataFrame.from_features(features, crs="EPSG:2154"))
-        if len(features) < PAGE:
-            break
-        start += PAGE
-    if not frames:
-        return gpd.GeoDataFrame(geometry=[], crs="EPSG:2154")
-    return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs="EPSG:2154")
 
 
 def by_point(layer, lat, lon):
@@ -147,8 +106,7 @@ def by_dept(region, layer, dept, dept_field=None):
             f"{dept_field} IN ('{padded}', '{short}')"))
     else:
         xmin, ymin, xmax, ymax = outline.total_bounds
-        gdf = get_features(layer, BBOX=f"{xmin},{ymin},{xmax},{ymax},"
-                                       f"urn:ogc:def:crs:EPSG::2154")
+        gdf = get_features(layer, BBOX=bbox_l93(xmin, ymin, xmax, ymax))
     if gdf.empty:
         return gdf
     # A neighbouring polygon that only touches the border clips to a line or a

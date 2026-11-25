@@ -43,8 +43,8 @@ paths that QGIS depends on.
 |---|---|---|
 | sites with coordinates and heights | nothing — write `sites.csv` by hand (step 2 below) | Quick start, step 3 |
 | a partner's list of high points: communes or addresses, no coordinates, unreliable heights | [`resolve_points_hauts.py`](docs/reference.md#resolve_points_hautspy--clean-a-partners-list) | Quick start, step 3 |
-| a first analysis done, and I want new high points to fill its gaps | [`find_anfr_candidates.py`](docs/reference.md#find_anfr_candidatespy--find-new-high-points) | append them, back to step 3 |
-| one small zone (a forest…), and the question « can the existing high points see it? » | [`fetch_zone.py`](docs/reference.md#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs), then [`find_anfr_candidates.py --around-zone`](docs/reference.md#around-one-zone---around-zone) | [Variant: one small zone](#-variant-one-small-zone-a-forest-a-massif) |
+| a first analysis done, and I want new high points to fill its gaps | [`find_candidates.py`](docs/reference.md#find_candidatespy--find-new-high-points) (ANFR + BD TOPO water towers) | append them, back to step 3 |
+| one small zone (a forest…), and the question « can the existing high points see it? » | [`fetch_zone.py`](docs/reference.md#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs), then [`find_candidates.py --around-zone`](docs/reference.md#around-one-zone---around-zone) | [Variant: one small zone](#-variant-one-small-zone-a-forest-a-massif) |
 
 ---
 
@@ -203,7 +203,8 @@ The question is no longer « how much of the département » but « can the
 existing high points see **this** zone ». The zone is the denominator, the
 sites are every ANFR support in range, whatever their département. Same chain
 as the Quick start, with three differences: the zone comes first, the sites
-come from the ANFR register, and every percentage is a share of the zone.
+come from the ANFR register and BD TOPO's water towers, and every percentage
+is a share of the zone.
 
 ```bash
 mkdir -p data/<region>                       # no sites.csv to write by hand
@@ -213,10 +214,10 @@ make zone REGION=<region> NAME=<zone> POINT=<lat>,<lon>
 #    check the printed name and area, then note the « --onf F… » it prints:
 #    make zone REGION=<region> NAME=<zone> ONF=<id> fetches the same polygon
 
-# 2. Every ANFR support within VIEWSHED_RADIUS_M of the zone outline
-uv run python find_anfr_candidates.py --region <region> --around-zone <zone> \
+# 2. Every ANFR support and water tower within VIEWSHED_RADIUS_M of the zone
+uv run python find_candidates.py --region <region> --around-zone <zone> \
     --hauteur-min 10
-cp data/<region>/candidats_anfr.csv data/<region>/sites.csv
+cp data/<region>/candidats.csv data/<region>/sites.csv
 
 # 3. Then the usual chain, with the zone as ZONES
 make audit      REGION=<region>
@@ -227,8 +228,9 @@ make prioritise REGION=<region> ZONES=<zone> PICKS=20
 make scenarios  REGION=<region>
 ```
 
-`data/<region>/scenarios.json` names the zone and sorts the ANFR owners, which
-`find_anfr_candidates.py` writes as `PUBLIC …` or `OPERATEUR …`. No `"dept"`:
+`data/<region>/scenarios.json` names the zone and sorts the owners, which
+`find_candidates.py` writes as `PUBLIC …` or `OPERATEUR …` (water towers from
+BD TOPO, which gives no owner, as `PUBLIC`). No `"dept"`:
 
 ```json
 {
@@ -256,15 +258,17 @@ make scenarios  REGION=<region>
 | `--radius` | `VIEWSHED_RADIUS_M` | to search wider or narrower than the detection radius |
 | `--publics-seulement`, `--max-operateurs N` | off | to leave paid operator sites out of the list itself, rather than in a scenario |
 | `--top N`, `--ecart M` | all, none | only if the list gets too long to compute |
+| `--sources anfr` | both | to leave BD TOPO water towers out |
 | `--onf` / `--layer` (`fetch_zone.py`) | — | reproducible zone; a polygon layer other than public forests |
 
 Two things to keep in mind:
 - ANFR heights include the antenna mast: a camera would sit lower, so
   coverage comes out optimistic.
-- The register only lists supports carrying radio equipment. A structure
-  without one (a water tower, a lookout) is only in BD TOPO
-  (`BDTOPO_V3:construction_ponctuelle`, `pylone`, `reservoir`): add it to
-  `sites.csv` by hand, then `make viewsheds` computes only the new sites.
+- The register only lists supports carrying radio equipment. Water towers
+  without one come from BD TOPO; any other structure (a lookout, a lattice
+  tower) is only in BD TOPO (`BDTOPO_V3:construction_ponctuelle`, `pylone`):
+  add it to `sites.csv` by hand, then `make viewsheds` computes only the new
+  sites.
 
 Details of each script:
 [`fetch_zone.py`](docs/reference.md#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs),
