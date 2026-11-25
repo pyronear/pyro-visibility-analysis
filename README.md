@@ -144,7 +144,17 @@ make prioritise REGION=<region> PICKS=<n>
 ```
 
 The zone defaults to the département (`ZONES=dept`), whose code comes from
-`"dept"` in `scenarios.json`. `summary` gives each site's area and the share
+`"dept"` in `scenarios.json`. To measure what matters instead — the OLD, the
+state forests — fetch that zone over the département first, then pass its
+name:
+
+```bash
+make zone REGION=<region> NAME=old SOURCE=old                 # brush-clearing zones
+make zone REGION=<region> NAME=forets-domaniales SOURCE=forets-domaniales
+make summary REGION=<region> ZONES=forets-domaniales,dept
+```
+
+`summary` gives each site's area and the share
 of the zone it sees; `prioritise` ranks the sites by what they add on top of
 the cameras already installed, for all sites and for public sites only.
 
