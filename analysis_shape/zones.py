@@ -13,9 +13,11 @@ would overstate the result by a factor of two.
 A zone is therefore just a named polygon layer plus the mask it projects onto a
 raster grid:
 
-    old     data/<region>/old_debroussaillement.gpkg, layer `old`
     dept    the département contour, fetched once and cached
-    <name>  data/<region>/zones/<name>.gpkg
+    <name>  data/<region>/zones/<name>.gpkg, written by fetch_zone.py (the
+            OLD, forests…) or by hand
+    old     also read from data/<region>/old_debroussaillement.gpkg, layer
+            `old`, in regions prepared before fetch_zone.py
 
 `reference_km2` is measured on the polygons, never on the mask. The mask only
 covers the DEM extent, so counting its pixels silently shrinks the denominator
@@ -73,9 +75,10 @@ class Zone:
 
 
 def _normalise_dept(dept):
-    """`077` in the OLD layer, `77` in the API — accept either spelling."""
+    """`077` / `006` in the OLD layer, `77` / `06` in the API — accept any spelling."""
     d = str(dept).strip()
-    return d.zfill(3), d.lstrip("0") or d
+    # The API wants two characters at least: `6` is a 404, `06` is the Alpes-Maritimes.
+    return d.zfill(3), (d.lstrip("0") or d).zfill(2)
 
 
 def _dept_gdf(region, dept):
@@ -124,10 +127,16 @@ def region_dept(region, dept=None):
 
 
 def _zone_gdf(region, name, dept):
-    if name == "old":
+    # fetch_zone.py writes the OLD to zones/old.gpkg like any other zone; the
+    # file regions prepared before it are still read when there is none.
+    if name == "old" and not os.path.exists(
+            os.path.join("data", region, "zones", "old.gpkg")):
         path = os.path.join("data", region, "old_debroussaillement.gpkg")
         if not os.path.exists(path):
-            raise SystemExit(f"❌ {path} not found — the OLD zone is unavailable")
+            raise SystemExit(
+                f"❌ no OLD zone for {region} — fetch it with: "
+                f"uv run python fetch_zone.py --region {region} --name old "
+                f"--source old --dept")
         gdf = gpd.read_file(path, layer="old")
         if dept and "dept" in gdf.columns:
             padded, short = _normalise_dept(dept)

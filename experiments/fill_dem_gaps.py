@@ -27,7 +27,6 @@ Usage:
 import argparse
 import os
 import sys
-import time
 import urllib.parse
 import urllib.request
 
@@ -41,6 +40,7 @@ import numpy as np  # noqa: E402
 import rasterio  # noqa: E402
 from rasterio.windows import Window  # noqa: E402
 
+from analysis_shape.download import fetch_parallel  # noqa: E402
 from config import REGION  # noqa: E402
 
 WMS_URL = "https://data.geopf.fr/wms-r"
@@ -51,7 +51,7 @@ NODATA_FLOOR = -100.0
 CHUNK_PX = 2000
 
 
-def fetch(layer, minx, miny, maxx, maxy, width, height, retries=3):
+def fetch(layer, minx, miny, maxx, maxy, width, height):
     params = {
         "SERVICE": "WMS", "VERSION": "1.3.0", "REQUEST": "GetMap",
         "LAYERS": layer, "STYLES": "", "FORMAT": "image/geotiff",
@@ -59,19 +59,14 @@ def fetch(layer, minx, miny, maxx, maxy, width, height, retries=3):
         "WIDTH": str(width), "HEIGHT": str(height),
     }
     url = f"{WMS_URL}?{urllib.parse.urlencode(params)}"
-    for attempt in range(retries):
-        try:
-            with urllib.request.urlopen(url, timeout=300) as response:
-                payload = response.read()
-            if payload[:4] not in (b"II*\x00", b"MM\x00*"):
-                return None  # the WMS answers with an error image, not a raster
-            with rasterio.io.MemoryFile(payload) as memfile, memfile.open() as src:
-                return src.read(1).astype(np.float32)
-        except Exception as exc:  # noqa: BLE001
-            if attempt == retries - 1:
-                print(f"   ⚠️  giving up on a chunk ({type(exc).__name__})")
-                return None
-            time.sleep(2 * (attempt + 1))
+    # Retried by fetch_parallel, at the end of the run.
+    with urllib.request.urlopen(url, timeout=300) as response:
+        payload = response.read()
+    if payload[:4] not in (b"II*\x00", b"MM\x00*"):
+        # The WMS answers with an error image, not a raster.
+        raise RuntimeError(f"not a GeoTIFF: {payload[:300]!r}")
+    with rasterio.io.MemoryFile(payload) as memfile, memfile.open() as src:
+        return src.read(1).astype(np.float32)
 
 
 def main():
@@ -110,58 +105,61 @@ def main():
     print(f"  filling from {args.layer} (code {code})"
           f"{' — existing provenance kept' if previous else ''}\n")
 
-    n_cols = int(np.ceil(width / CHUNK_PX))
-    n_rows = int(np.ceil(height / CHUNK_PX))
-    total = n_cols * n_rows
+    windows = [
+        Window(off_x, off_y, min(CHUNK_PX, width - off_x),
+               min(CHUNK_PX, height - off_y))
+        for off_y in range(0, height, CHUNK_PX)
+        for off_x in range(0, width, CHUNK_PX)
+    ]
     holes = filled = 0
     done = 0
 
-    prov_open = ((provenance_path, "r+") if previous
-                 else (provenance_path, "w"))
-    prov_kwargs = {} if previous else source_profile
+    def fetch_window(window):
+        chunk_minx = left + window.col_off * res_x
+        chunk_maxy = top - window.row_off * res_y
+        return fetch(args.layer, chunk_minx, chunk_maxy - window.height * res_y,
+                     chunk_minx + window.width * res_x, chunk_maxy,
+                     window.width, window.height)
+
+    if not previous:
+        # Created first: a raster opened in "w" mode cannot be read back.
+        with rasterio.open(provenance_path, "w", **source_profile):
+            pass
     with rasterio.open(dem_path, "r+") as dst, \
-            rasterio.open(*prov_open, **prov_kwargs) as prov:
-        for row in range(n_rows):
-            for col in range(n_cols):
-                off_x, off_y = col * CHUNK_PX, row * CHUNK_PX
-                w = min(CHUNK_PX, width - off_x)
-                h = min(CHUNK_PX, height - off_y)
-                window = Window(off_x, off_y, w, h)
-
-                band = dst.read(1, window=window)
-                missing = band <= NODATA_FLOOR
-                if previous:
-                    source = prov.read(1, window=window)
-                else:
-                    source = np.where(missing, 0, 1).astype(np.uint8)
-                done += 1
-
-                if not missing.any():
-                    prov.write(source, 1, window=window)
-                    print(f"   [{done}/{total}] complete")
-                    continue
-
+            rasterio.open(provenance_path, "r+") as prov:
+        # Local pass first: provenance for every window, so a chunk whose
+        # download fails still has one, and the list of chunks to download.
+        with_holes = []
+        for window in windows:
+            missing = dst.read(1, window=window) <= NODATA_FLOOR
+            if not previous:
+                prov.write(np.where(missing, 0, 1).astype(np.uint8), 1,
+                           window=window)
+            if missing.any():
                 holes += int(missing.sum())
-                chunk_minx = left + off_x * res_x
-                chunk_maxy = top - off_y * res_y
-                patch = fetch(args.layer, chunk_minx, chunk_maxy - h * res_y,
-                              chunk_minx + w * res_x, chunk_maxy, w, h)
+                with_holes.append(window)
+        print(f"   {len(with_holes)}/{len(windows)} chunks with holes\n")
 
-                if patch is None:
-                    prov.write(source, 1, window=window)
-                    print(f"   [{done}/{total}] {missing.sum():>7} holes — "
-                          f"filling failed")
-                    continue
+        def write(window, patch):
+            nonlocal filled, done
+            band = dst.read(1, window=window)
+            source = prov.read(1, window=window)
+            missing = band <= NODATA_FLOOR
+            usable = missing & (patch > NODATA_FLOOR)
+            band[usable] = patch[usable]
+            source[usable] = code
+            filled += int(usable.sum())
 
-                usable = missing & (patch > NODATA_FLOOR)
-                band[usable] = patch[usable]
-                source[usable] = code
-                filled += int(usable.sum())
+            dst.write(band, 1, window=window)
+            prov.write(source, 1, window=window)
+            done += 1
+            print(f"   [{done}/{len(with_holes)}] {missing.sum():>7} holes, "
+                  f"{usable.sum():>7} filled")
 
-                dst.write(band, 1, window=window)
-                prov.write(source, 1, window=window)
-                print(f"   [{done}/{total}] {missing.sum():>7} holes, "
-                      f"{usable.sum():>7} filled")
+        failed = fetch_parallel(with_holes, fetch_window, write)
+    if failed:
+        print(f"\n   ⚠️  {len(failed)} chunk(s) could not be downloaded; "
+              f"their holes remain.")
 
     pixels = width * height
     print(f"\n✅ {dem_path}")

@@ -45,8 +45,9 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | script | where | role |
 |---|---|---|
 | `resolve_points_hauts.py` | terminal | partner spreadsheet (communes/addresses) → `sites.csv` |
-| `find_anfr_candidates.py` | terminal | new high points from the ANFR register, ranked by blind spot; `--around-zone`: every support in range of one zone |
-| `fetch_zone.py` | terminal | a zone of interest (public forest…) from the IGN WFS → `zones/<name>.gpkg` |
+| `fetch_anfr.py` | terminal | latest ANFR register → `data/anfr/<date>/` (`make anfr`) |
+| `find_candidates.py` | terminal | new high points from the ANFR register and BD TOPO water towers, ranked by blind spot; `--around-zone`: every support in range of one zone |
+| `fetch_zone.py` | terminal | a zone of interest (one forest, a département's state forests, the OLD) from the IGN WFS → `zones/<name>.gpkg` |
 | `audit_sites.py` | terminal | check declared heights against Lidar HD MNT/MNS |
 | `experiments/generate_dem_fr.py` | terminal | Lidar HD surface model over WMS |
 | `experiments/fill_dem_gaps.py` | terminal | fill Lidar HD holes in a surface model |
@@ -65,6 +66,7 @@ standalone scripts reset PROJ/GDAL paths that QGIS depends on (see Pitfalls).
 | `analysis_shape/zones.py` | imported | mask of a zone of interest (OLD, département, gpkg) |
 | `analysis_shape/selection.py` | imported | the one greedy selection, shared |
 | `analysis_shape/terrain.py` | imported | observer height corrected for the surface model |
+| `analysis_shape/download.py` | imported | WMS chunks 4 at a time, failed ones retried at the end |
 
 ---
 
@@ -96,7 +98,7 @@ make package PROJECT=<project>.qgz               # LIGHT_DEM=50
 **The département has one source**: `"dept"` in `data/<region>/scenarios.json`,
 read by `zones.region_dept()`; `--dept` only overrides it. It is required only
 by the `dept` zone and the ANFR scripts (`resolve_points_hauts.py`,
-`find_anfr_candidates.py`, except with `--around-zone`), which fail with a
+`find_candidates.py`, except with `--around-zone`), which fail with a
 message saying where to set it.
 Outside France or with a custom zone (`data/<region>/zones/<name>.gpkg`),
 leave it out. Do not reintroduce a hardcoded default.
@@ -286,9 +288,12 @@ cameras on the same ground) once the zone is already in range.
 
 **Zones of interest, not raw area.** Raw km² ranks candidates very
 differently from km² of what matters. `zones.py` rasterises a named zone onto
-a viewshed grid: `old` (brush-clearing obligation zones, WFS
-`DEBROUSSAILLEMENT:debroussaillement`), `dept` (département outline, cached),
-or any `data/<region>/zones/<name>.gpkg`. Without OLD, the zone is the
+a viewshed grid: `dept` (département outline, cached) or any
+`data/<region>/zones/<name>.gpkg`. `fetch_zone.py` writes those from named
+WFS sources — `old` (brush-clearing obligation zones,
+`DEBROUSSAILLEMENT:debroussaillement`), `forets-domaniales`, one forest —
+clipped to the département outline with `--dept`; older regions keep their
+OLD in `old_debroussaillement.gpkg`, still read. Without OLD, the zone is the
 département: much of what cameras see can fall in neighbouring ones.
 ⚠️ A zone percentage's denominator is measured on the **polygons**, never on
 the mask (which only covers the DEM extent). The OLD WFS returns whole
@@ -304,11 +309,16 @@ operator sites (`max_operateurs`) or stopped at a target percentage. Both
 `prioritise_sites.py` and `scenario_layers.py` call it, so they cannot
 disagree; « public only » is `max_operateurs=0`.
 
-**Access cost is declared, not guessed.** Owner categories (public /
-delegataire / operateur) are declared under `gestionnaires` in
+**Access cost is declared, not guessed.** Owner categories (public / reseau /
+delegataire / operateur / prive) are declared under `gestionnaires` in
 `scenarios.json`, matched on accent- and case-insensitive substrings. An
-unknown owner defaults to `operateur` (paid), so the affordable set is
-understated rather than overstated. `Owner` carries the manager; `Status`
+unknown owner defaults to a paid category, so the affordable set is
+understated rather than overstated. `public` and `reseau` (SNCF, RTE, EDF…)
+are free under `max_operateurs`; every other category counts against it.
+`find_candidates.py` writes the ANFR owner type as `PUBLIC`, `RESEAU` or
+`PRIVE`. **Use a current ANFR export** (`make anfr`): `TPO_ID` follows tower
+companies' purchases, and an export two years old filed Hivory or Totem
+pylons under the former operator or the landowner — some passed for public. `Owner` carries the manager; `Status`
 (`EN PLACE`) whether a camera is installed — mixing them erased the manager.
 
 **Scenarios live in `data/<region>/scenarios.json`**, not in code: an explicit
@@ -319,13 +329,18 @@ moving; an explicit list wins over any rule.
 
 **One small zone: compute every support, don't score them.** For a zone a
 few km wide (a forest), the blind-spot score is useless — every support in
-range scores the whole zone. `find_anfr_candidates.py --around-zone` keeps
+range scores the whole zone. `find_candidates.py --around-zone` keeps
 every usable support within the radius of the zone outline, any département,
 and the real viewsheds (about a second each) decide. The zone itself comes
 from `fetch_zone.py` (BD TOPO public forests, by point or ONF identifier).
 
 **Search for high points, don't just validate them.**
-`find_anfr_candidates.py` narrows a département's ANFR supports in one pass:
+`find_candidates.py` merges a département's ANFR supports with BD TOPO water
+towers, which the register misses when they carry no antenna (an ANFR water
+tower within 50 m of a BD TOPO tower is that tower: BD TOPO position and
+height, ANFR owner; a support of another kind that close stays a separate
+entry; BD TOPO gives no owner, so a tower alone is listed PUBLIC). Then, in
+one pass:
 usable kind, minimum height, distance to known sites, owner, then a
 « blind spot » score — uncovered zone area within a detection-radius disc,
 via an integral image, terrain ignored (an upper bound). Sorted and spaced
@@ -351,7 +366,7 @@ an observer; its address field matches more reliably than BAN geocoding.
 | Lidar HD MNS / MNT / MNH | WMS `data.geopf.fr/wms-r`, layers `IGNF_LIDAR-HD_MN{S,T,H}_ELEVATION.ELEVATIONGRIDCOVERAGE.LAMB93` |
 | Lidar HD coverage | `macarte.ign.fr/carte/mThSup/diffusionMNxLiDARHD` |
 | OLD zones | WFS `data.geopf.fr/wfs/ows`, `DEBROUSSAILLEMENT:debroussaillement` |
-| Radio supports | data.gouv.fr, « Données sur les installations radioélectriques de plus de 5 watts » → `SUP_SUPPORT`, with `SUP_NATURE`, `SUP_PROPRIETAIRE` |
+| Radio supports | data.gouv.fr, « Données sur les installations radioélectriques de plus de 5 watts » → `SUP_SUPPORT.txt`, with `SUP_NATURE`, `SUP_PROPRIETAIRE`; `make anfr` fetches the latest into `data/anfr/<date>/` |
 | Structures with height | WFS `data.geopf.fr/wfs/ows`, `BDTOPO_V3:reservoir`, `BDTOPO_V3:pylone` |
 | Address geocoding | `api-adresse.data.gouv.fr` (BAN) |
 | Communes, outlines | `geo.api.gouv.fr/departements/<NN>/communes?fields=contour` |

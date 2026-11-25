@@ -30,7 +30,6 @@ import argparse
 import importlib.util
 import os
 import sys
-import time
 import urllib.parse
 import urllib.request
 
@@ -66,6 +65,7 @@ from rasterio.windows import Window  # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from analysis_shape.config_loader import load_config  # noqa: E402  (needs the path fix above)
+from analysis_shape.download import RETRY_PASSES, fetch_parallel  # noqa: E402
 
 _config = load_config()
 REGION = _config.REGION
@@ -96,7 +96,6 @@ VIEWSHED_RADIUS_M = getattr(_config, "VIEWSHED_RADIUS_M", 15000)
 BUFFER_MARGIN_M = 1000  # small margin so the horizon isn't clipped exactly
 
 CHUNK_PX = 2000  # request size; 2000x2000 float32 ≈ 16 MB per request
-MAX_RETRIES = 4
 
 
 def sites_bbox_l93(csv_path, buffer_m):
@@ -134,22 +133,15 @@ def fetch_chunk(layer, minx, miny, maxx, maxy, width, height):
     }
     url = f"{WMS_URL}?{urllib.parse.urlencode(params)}"
 
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            with urllib.request.urlopen(url, timeout=180) as response:
-                payload = response.read()
-            if payload[:4] not in (b"II*\x00", b"MM\x00*"):
-                # The server answers errors as XML with a 200 status.
-                raise RuntimeError(f"not a GeoTIFF: {payload[:300]!r}")
-            with rasterio.io.MemoryFile(payload) as memfile:
-                with memfile.open() as src:
-                    return src.read(1).astype(np.float32)
-        except Exception as exc:  # noqa: BLE001 - retry on anything transient
-            if attempt == MAX_RETRIES:
-                raise
-            wait = 2 ** attempt
-            print(f"   ⚠️  attempt {attempt} failed ({exc}); retrying in {wait}s")
-            time.sleep(wait)
+    # Retried by fetch_parallel, at the end of the run.
+    with urllib.request.urlopen(url, timeout=180) as response:
+        payload = response.read()
+    if payload[:4] not in (b"II*\x00", b"MM\x00*"):
+        # The server answers errors as XML with a 200 status.
+        raise RuntimeError(f"not a GeoTIFF: {payload[:300]!r}")
+    with rasterio.io.MemoryFile(payload) as memfile:
+        with memfile.open() as src:
+            return src.read(1).astype(np.float32)
 
 
 def clean_nodata(array):
@@ -204,34 +196,39 @@ def build_dem(layer, bbox, resolution, output_path):
         "blockysize": 512,
     }
 
-    n_cols = int(np.ceil(width / CHUNK_PX))
-    n_rows = int(np.ceil(height / CHUNK_PX))
-    total = n_cols * n_rows
+    windows = [
+        Window(off_x, off_y, min(CHUNK_PX, width - off_x),
+               min(CHUNK_PX, height - off_y))
+        for off_y in range(0, height, CHUNK_PX)
+        for off_x in range(0, width, CHUNK_PX)
+    ]
+    total = len(windows)
     nodata_count = 0
+    done = 0
+
+    def fetch(window):
+        chunk_minx = minx + window.col_off * resolution
+        chunk_maxy = maxy - window.row_off * resolution
+        array = fetch_chunk(
+            layer, chunk_minx, chunk_maxy - window.height * resolution,
+            chunk_minx + window.width * resolution, chunk_maxy,
+            window.width, window.height,
+        )
+        return clean_nodata(array)
 
     with rasterio.open(output_path, "w", **profile) as dst:
-        done = 0
-        for row in range(n_rows):
-            for col in range(n_cols):
-                off_x = col * CHUNK_PX
-                off_y = row * CHUNK_PX
-                w = min(CHUNK_PX, width - off_x)
-                h = min(CHUNK_PX, height - off_y)
+        def write(window, array):
+            nonlocal nodata_count, done
+            nodata_count += int((array == NODATA).sum())
+            dst.write(array, 1, window=window)
+            done += 1
+            print(f"   [{done}/{total}] chunk written "
+                  f"({window.width}x{window.height})")
 
-                chunk_minx = minx + off_x * resolution
-                chunk_maxy = maxy - off_y * resolution
-                chunk_maxx = chunk_minx + w * resolution
-                chunk_miny = chunk_maxy - h * resolution
-
-                array = fetch_chunk(
-                    layer, chunk_minx, chunk_miny, chunk_maxx, chunk_maxy, w, h
-                )
-                array = clean_nodata(array)
-                nodata_count += int((array == NODATA).sum())
-
-                dst.write(array, 1, window=Window(off_x, off_y, w, h))
-                done += 1
-                print(f"   [{done}/{total}] chunk written ({w}x{h})")
+        failed = fetch_parallel(windows, fetch, write)
+    if failed:
+        raise RuntimeError(f"{len(failed)} chunk(s) still failing after "
+                           f"{RETRY_PASSES} retry passes")
 
     pct = 100 * nodata_count / (width * height)
     return pct

@@ -21,25 +21,32 @@ NAME    ?=
 RES     ?= 100
 POINT   ?=
 ONF     ?=
+SOURCE  ?=
+DEPT    ?=
 
 R := $(if $(REGION),--region $(REGION))
 
 .DEFAULT_GOAL := help
-.PHONY: help gdal-check zone audit dem viewsheds summary prioritise scenarios \
+.PHONY: help gdal-check anfr zone audit dem viewsheds summary prioritise scenarios \
         scenarios-md viewer package analyse
 
 help: ## List the targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | \
 	  awk 'BEGIN {FS = ":.*## "} {printf "  make %-13s %s\n", $$1, $$2}'
 	@echo "  Variables: REGION=<region> ZONES=$(ZONES) PICKS=$(PICKS) FREEZE=1 PROJECT=<x>.qgz RES=$(RES)"
-	@echo "             NAME=<zone> POINT=<lat>,<lon> ONF=<id> (make zone)"
+	@echo "             NAME=<zone> POINT=<lat>,<lon> | ONF=<id> | DEPT=<NN> SOURCE=<source> (make zone)"
 
 gdal-check: ## Check gdal_viewshed (pulls the Docker image the first time)
 	@$(PY) -m analysis_shape.gdal_viewshed
 
-zone: ## Fetch a zone of interest (NAME=<zone>, POINT=<lat>,<lon> or ONF=<id>)
+# Without POINT or ONF, the whole département: DEPT, else scenarios.json's.
+anfr: ## Download the latest ANFR register into data/anfr/<date>/
+	$(PY) fetch_anfr.py
+
+zone: ## Fetch a zone of interest (NAME=<zone>; POINT, ONF or the département; SOURCE)
 	@test -n "$(NAME)" || { echo "❌ NAME=<zone> is required"; exit 1; }
-	$(PY) fetch_zone.py $(R) --name $(NAME) $(if $(POINT),--point $(POINT)) $(if $(ONF),--onf $(ONF))
+	$(PY) fetch_zone.py $(R) --name $(NAME) $(if $(SOURCE),--source $(SOURCE)) \
+	  $(if $(POINT),--point $(POINT),$(if $(ONF),--onf $(ONF),--dept $(DEPT)))
 
 audit: ## Check declared site heights against Lidar HD
 	$(PY) audit_sites.py $(R)

@@ -65,21 +65,42 @@ sits below the top.
   antenna masts and overstate water towers.
 - `--anfr` — path to `SUP_SUPPORT.geojson` (optional, used to cross-check).
 
-### `find_anfr_candidates.py` — find new high points
+### `find_candidates.py` — find new high points
 
 **When:** a first analysis exists and you want structures that could cover
 what is still blind. Needs existing viewsheds for the region.
 
-It keeps ANFR supports of a usable kind (water towers, pylons, masts…) at
-least `--hauteur-min` m tall (default 30), drops those near a site already in
-`sites.csv`, and ranks the rest by the uncovered zone area within detection
+Two sources, merged into one list of structures (`--sources`, both by
+default):
+
+- `anfr` — the ANFR register: height, kind and owner, but only supports that
+  carry an antenna;
+- `chateaux-eau` — BD TOPO water towers (`BDTOPO_V3:reservoir`, nature
+  « Château d'eau »), which the register misses when they carry no radio
+  equipment. BD TOPO gives no owner: they are listed as `PUBLIC château d'eau
+  (BD TOPO)` — a commune or a water syndicate, most of the time. Correct the
+  `Owner` by hand when a survey says otherwise.
+
+A water tower with antennas is in both. An ANFR support registered as a water
+tower within `--doublon` (default 50 m) of a BD TOPO tower is that tower — of
+the nearest one when two stand side by side: one entry is kept, with the
+BD TOPO position and height (the structure, without the antenna mast) and the
+ANFR identifier and owner. A support of another kind that close, such as a
+pylon at the foot of the tower, stays a separate entry. On a test département the tower-to-support
+distances fall below 50 m or above 100 m, nothing in between.
+
+Then the same passes for every source: usable kind (water towers, pylons,
+masts…), at least `--hauteur-min` m tall (default 30), away from a site
+already in `sites.csv`, ranked by the uncovered zone area within detection
 range. The score ignores terrain: it sorts, real viewsheds decide.
 
 ```bash
-uv run python find_anfr_candidates.py --region <region> --top 25 --max-operateurs 10
+uv run python find_candidates.py --region <region> --top 25 --max-operateurs 10
+uv run python find_candidates.py --region <region> --sources anfr   # ANFR only
 ```
 
-**Produces:** `data/<region>/candidats_anfr.csv`, in the `sites.csv` format.
+**Produces:** `data/<region>/candidats.csv`, in the `sites.csv` format; names
+start with `ANFR <id>` (also for a merged tower) or `BDTOPO <id>`.
 Append its rows to `sites.csv` — or, to compare « the partner's list » with
 « the list plus ANFR », put them in their own region folder and name it in a
 scenario's `regions_candidats`. Then audit them and rerun
@@ -89,9 +110,21 @@ it was downloaded. `compute_viewsheds.py` then warns and computes it clipped;
 for a full disc, regenerate the DEM (`generate_dem_fr.py`) and delete
 `output/`, since every viewshed must share the new grid.
 
-**Useful options:** `--anfr`, `--refs` (ANFR files), `--top`, `--ecart`
-(minimum spacing between candidates, m), `--max-operateurs` (cap on paid
-operator supports), `--publics-seulement`.
+**Owners.** The ANFR owner type (`TPO_ID`) sorts each support into `PUBLIC`
+(communes, water syndicates, départements, régions, SDIS, State services),
+`RESEAU` (SNCF, RTE, EDF/Enedis, motorways, RATP, La Poste) or `PRIVE` (tower
+companies — TDF, Totem, Hivory, Cellnex, ATC… —, telecom operators,
+broadcasters, any private owner), written at the head of `Owner`. It is only
+as current as the export: `make anfr` fetches the latest into
+`data/anfr/<date>/`, read by default, and the script warns when it is more
+than six months old. An export two years old had no pylon at all under
+Hivory or Totem, and some of theirs passed for public.
+
+**Useful options:** `--sources`, `--doublon`, `--anfr`, `--refs` (ANFR
+files; default the newest `data/anfr/` export, and for `--refs` the folder of
+`--anfr`, so both come from the same export), `--top`, `--ecart`
+(minimum spacing between candidates, m), `--max-operateurs` (cap on `PRIVE`
+supports), `--publics-seulement` (`PUBLIC` and `RESEAU` only).
 
 #### Around one zone: `--around-zone`
 
@@ -99,8 +132,9 @@ operator supports), `--publics-seulement`.
 département: « can the existing high points see it? ». The zone comes from
 `data/<region>/zones/<zone>.gpkg` ([`fetch_zone.py`](#fetch_zonepy--a-zone-of-interest-from-the-ign-wfs)).
 
-Every usable support within `--radius` (default `VIEWSHED_RADIUS_M`) of the
-zone **outline** is kept, whatever its département: a zone near a border is
+Every usable support — ANFR or BD TOPO water tower — within `--radius`
+(default `VIEWSHED_RADIUS_M`) of the zone **outline** is kept, whatever its
+département: a zone near a border is
 watched from both sides. There is no blind-spot score — on a zone a few km
 wide every support in range would score the whole zone — and no shortlist:
 viewsheds cost about a second each, so they are all computed and the greedy
@@ -110,33 +144,47 @@ Needs neither a département nor an earlier viewshed: it is the **first** step
 of such a region.
 
 ```bash
-uv run python find_anfr_candidates.py --region <region> --around-zone <zone>
-cp data/<region>/candidats_anfr.csv data/<region>/sites.csv   # empty region
+uv run python find_candidates.py --region <region> --around-zone <zone>
+cp data/<region>/candidats.csv data/<region>/sites.csv   # empty region
 ```
 
 The DEM is then framed on `sites.csv` + radius, as usual. ⚠️ `SUP_NM_HAUT`
 is the support height **including** its antenna mast: the camera would sit
-lower. And `--hauteur-min 30` (the default) leaves out short masts on a
+lower (a merged water tower takes the BD TOPO height, without the mast). And `--hauteur-min 30` (the default) leaves out short masts on a
 summit, which may see the zone better than a tall pylon in the plain — try
 `--hauteur-min 10` too.
 
 ### `fetch_zone.py` — a zone of interest from the IGN WFS
 
-**When:** the zone of interest is one named public polygon — typically a
-forest — rather than the OLD or the département.
+**When:** the zone of interest is not the département: one forest, every
+state forest of the département, the OLD.
 
 Writes `data/<region>/zones/<name>.gpkg` (Lambert-93, layer `zone`, source
-attributes kept) from BD TOPO's public forests (`BDTOPO_V3:foret_publique`:
-every ONF-managed forest — domaniale, communale, départementale — with its
-toponym and ONF identifier; private forests are not in it).
+attributes kept) from a named source of the IGN WFS:
+
+| `--source` | layer | kept |
+|---|---|---|
+| `forets-publiques` (default) | `BDTOPO_V3:foret_publique` | every ONF-managed forest — domaniale, communale, départementale — with its toponym and ONF identifier; private forests are not in it |
+| `forets-domaniales` | `BDTOPO_V3:foret_publique` | `nature = Forêt domaniale` only |
+| `old` | `DEBROUSSAILLEMENT:debroussaillement` | brush-clearing obligation zones |
 
 ```bash
 uv run python fetch_zone.py --region <region> --name <zone> --point <lat>,<lon>
 uv run python fetch_zone.py --region <region> --name <zone> --onf F12345X
+uv run python fetch_zone.py --region <region> --name forets-domaniales \
+    --source forets-domaniales --dept
+uv run python fetch_zone.py --region <region> --name old --source old --dept
 ```
 
 `--point` takes the polygon(s) containing the point; `--onf` the forest with
-that ONF identifier (`identifiants_sources`), stable across BD TOPO editions.
+that ONF identifier (`identifiants_sources`), stable across BD TOPO editions;
+`--dept` every polygon of the source in the département (`--dept <NN>`, or
+alone for `"dept"` in `scenarios.json`), **clipped to its outline**: a forest
+across the border counts for its part in the département, as in the `dept`
+zone. The script lists each forest with its area and ONF identifier, and the
+total — check them before going further. A zone named `old` replaces the
+former `data/<region>/old_debroussaillement.gpkg`, which is still read in a
+region that has no `zones/old.gpkg`.
 
 **Finding the ONF identifier.** Run `--point` first, with a coordinate read
 on any map: the script prints each polygon's toponym, area and `--onf`
@@ -154,12 +202,13 @@ with *Identify Features*: `toponyme` and `identifiants_sources`
 (`ONF:F12345X`). The « Forêts publiques » layer of cartes.gouv.fr shows the
 forests, but its information panel may not give the identifier.
 
-With `--layer`, `--point` works on any polygon layer of the same WFS. Several
-polygons make a zone that is their union; the script says so. Then set
+With `--layer`, `--point` and `--dept` work on any polygon layer of the same
+WFS. Several polygons make a zone that is their union. Then set
 `"zone": "<zone>"` and `"zone_libelle"` in `scenarios.json`, and pass
 `--zones <zone>` (`ZONES=<zone>` with make) to `summary.py` and
-`prioritise_sites.py`. Also `make zone REGION=<region> NAME=<zone>
-POINT=<lat>,<lon>` (or `ONF=<id>`).
+`prioritise_sites.py`. Also `make zone REGION=<region> NAME=<zone>` with
+`POINT=<lat>,<lon>`, `ONF=<id>`, or neither for the département (`DEPT=<NN>`
+to override `scenarios.json`), and `SOURCE=<source>`.
 
 ### `audit_sites.py` — check the heights
 
@@ -182,6 +231,10 @@ around the sites. Writes `data/<region>/dem_l93.tif`.
 - `--product MNS_CORREL` — where Lidar HD does not exist yet (whole regions):
   the national photogrammetric surface model, which carries the canopy and
   matches the lidar to +0.4 m median.
+- Chunks are fetched 4 at a time. A chunk that fails is retried at the end of
+  the run, up to 3 more passes; if one still fails, the partial file is
+  deleted and the previous `dem_l93.tif` is kept. `fill_dem_gaps.py` works
+  the same way and reports the chunks it could not fill.
 - The download **does not resume**: unwritten blocks read back as 0 m, not
   nodata. If you stop it, delete the partial file.
 
@@ -316,9 +369,9 @@ uv run python summary.py --region <region> --zones dept
 ```
 
 `--zones`: `dept` (département outline; the code is read from `"dept"` in
-`scenarios.json`, or `--dept`), `old` (brush-clearing
-obligation zones), or any `data/<region>/zones/<name>.gpkg`; several with
-commas. Writes `summary.csv` and `sites_with_coverage.gpkg` (sites as points,
+`scenarios.json`, or `--dept`), `old` (brush-clearing obligation zones, from
+`fetch_zone.py --source old`), or any `data/<region>/zones/<name>.gpkg`;
+several with commas. Writes `summary.csv` and `sites_with_coverage.gpkg` (sites as points,
 to label with `area_km2` in QGIS).
 
 ### `prioritise_sites.py` — marginal contribution
@@ -336,7 +389,7 @@ pass `--zones dept` where there is no OLD layer. Writes
 
 **The département, in every script**, comes from `"dept"` in
 `data/<region>/scenarios.json`; `--dept` overrides it. It is only needed for
-the `dept` zone and the ANFR scripts (not `find_anfr_candidates.py
+the `dept` zone and the candidate scripts (not `find_candidates.py
 --around-zone`) — outside France, or with a zone of your own
 (`data/<region>/zones/<name>.gpkg`), leave it out.
 
@@ -344,7 +397,9 @@ the `dept` zone and the ANFR scripts (not `find_anfr_candidates.py
 
 `data/<region>/scenarios.json` names the regions whose viewsheds are read
 (`regions`), the zone of interest (`zone`, `dept`), the owner categories
-(`gestionnaires`) and the scenarios. Each scenario is a list or a rule:
+(`gestionnaires`) and the scenarios. `public` and `reseau` are free in a
+capped scenario: `max_operateurs` counts every other category. Each scenario
+is a list or a rule:
 
 | key | meaning |
 |---|---|
@@ -354,7 +409,7 @@ the `dept` zone and the ANFR scripts (not `find_anfr_candidates.py
 | `"meilleurs": 6` | the 6 best by marginal contribution |
 | `"cible_pct": 90` | as many sites as needed to reach 90 % of the zone |
 | `"critere": "triangulation"` | optimise triangulation instead of coverage |
-| `"max_operateurs": 2` | at most 2 paid operator sites, the rest public |
+| `"max_operateurs": 2` | at most 2 paid sites (not `public` nor `reseau`), the rest free |
 | `"regions_candidats": [...]` | pick candidates from these regions only; they need not be in `regions` |
 
 ```bash
@@ -387,8 +442,10 @@ without editing `config.py`, define `PYRO_REGION = '<region>'` in the console
 before the `exec`; `PYRO_SCENARIOS = ['00', '01']` keeps only the scenarios
 whose name starts with those prefixes.
 
-Each scenario also gets its own points layer, named like its coverage raster,
-in the « Sites par scénario » subgroup of « Sites »: it reads
+Each scenario is a subgroup of the scenario groups, named with its metrics:
+its sites, as stars with a drop shadow, coloured by access cost, over its coverage raster.
+Ticking the subgroup shows both, and the group is mutually exclusive, so
+ticking a scenario unticks the previous one. The sites come from
 `output/scenario_<name>/sites.gpkg`, which scenario folders built before it
 existed lack — rerun `scenario_layers.py` to get them.
 
@@ -452,7 +509,7 @@ Under `data/<region>/`:
 | file | written by | content |
 |---|---|---|
 | `resolution.csv` | `resolve_points_hauts.py` | every resolution decision, to review |
-| `candidats_anfr.csv` | `find_anfr_candidates.py` | ANFR shortlist, `sites.csv` format |
+| `candidats.csv` | `find_candidates.py` | shortlist (ANFR + BD TOPO water towers), `sites.csv` format |
 | `dem_l93.tif` | `generate_dem_fr.py` | the DEM `compute_viewsheds.py` reads |
 | `dem_l93_source.tif` | `fill_dem_gaps.py` | origin of each pixel |
 | `ground_elevation.json` | `compute_viewsheds.py` | ground elevation cache per site (`{ground, x, y}`) |
@@ -462,7 +519,7 @@ Under `data/<region>/`:
 | `output/output.csv` | `compute_viewsheds.py` | `Site`, `Surface` (m²), `% du total` (share of the union) |
 | `output/summary.csv`, `output/sites_with_coverage.gpkg` | `summary.py` | km² per site and per zone |
 | `output/priorisation.csv` | `prioritise_sites.py` | total and marginal area per site and zone |
-| `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest, layer `zone` |
+| `zones/<name>.gpkg` | `fetch_zone.py`, or by hand | a zone of interest (one forest, the state forests, the OLD…), layer `zone` |
 | `output/scenario_<name>/` | `scenario_layers.py` | count rasters, `bilan.csv`, `meta.json`, `sites.gpkg` (the scenario's sites as points) |
 | `output/viewer.html` | `viewer.py` | the self-contained page: sites, zone, viewsheds, scenarios |
 

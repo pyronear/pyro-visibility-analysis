@@ -25,6 +25,7 @@ from analysis_shape.names import site_name  # noqa: E402
 
 # Labels for the owner categories, in reading order.
 ETIQUETTES = {"en place": "*en place*", "public": "public",
+              "reseau": "réseau",
               "delegataire": "délégataire", "operateur": "**opérateur**",
               "prive": "**privé**"}
 
@@ -125,7 +126,7 @@ def main():
         ]
         for index, site in enumerate(meta["sites"], 1):
             owner, height, deployed = table.get(site, ("", "", False))
-            # find_anfr_candidates.py prefixes ANFR labels with PUBLIC /
+            # find_candidates.py prefixes ANFR labels with PUBLIC /
             # OPERATEUR; the prefix duplicates the status column, so only the
             # owner is kept.
             clean = str(owner)

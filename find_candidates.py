@@ -1,4 +1,4 @@
-"""Find new high points from the ANFR register, ranked by what they could add.
+"""Find new high points, ranked by what they could add.
 
 A SDIS list of high points is what the SDIS already knows about. It is rarely
 the best set available: on one test département the ANFR register turned up 24
@@ -6,12 +6,35 @@ further candidates, and several outranked the original list. On another the 14
 known points saturate at 82.5 % of the département, so anything beyond that has
 to come from elsewhere.
 
+Two sources, merged into one list of structures:
+
+  anfr          the ANFR register of radio supports: height, kind and owner,
+                but only structures that carry an antenna
+  chateaux-eau  BD TOPO water towers (`BDTOPO_V3:reservoir`, nature
+                « Château d'eau »), which the register misses when they carry
+                no radio equipment. Their owner is not given: they are listed
+                as PUBLIC (a commune or a water syndicate), to be corrected by
+                hand when a survey says otherwise.
+
+A water tower that does carry antennas is in both. An ANFR support registered
+as a water tower within `--doublon` of a BD TOPO tower is that tower: one
+entry is kept, with the BD TOPO position and height — the structure itself,
+where ANFR's `SUP_NM_HAUT` includes the antenna mast and its coordinates are
+whole DMS seconds (~30 m) — and the ANFR identifier and owner. A support of
+another kind that close (a pylon at the foot of the tower) stays a separate
+entry.
+
 The register is exhaustive but far too large to viewshed blindly — 1 739
-supports in a single département. This narrows it down in four passes:
+supports in a single département. This narrows the list down in four passes,
+the same for both sources:
 
   nature & height   only structures a camera can actually use
-  ownership         `TPO_ID` sorts public (commune, syndicat des eaux, SDIS,
-                    département) from tower operators, who charge for access
+  ownership         `TPO_ID` sorts supports into PUBLIC (commune, syndicat
+                    des eaux, SDIS, département, State), RESEAU (network
+                    operators: SNCF, RTE, EDF/Enedis, motorways) and PRIVE
+                    (tower companies, telecom operators, broadcasters, any
+                    private owner), who charge for access. It is only as
+                    current as the export: see analysis_shape/anfr.py
   novelty           drop anything standing next to a site already in sites.csv
   blind-spot score  rank on how much *currently uncovered* zone lies within
                     detection range — the cheap geometric upper bound on what a
@@ -23,9 +46,10 @@ the real viewsheds decide. Sites are thinned so two candidates never sit within
 `--ecart` of each other, which would otherwise fill the list with neighbours
 scoring nearly the same.
 
-Output is `candidats_anfr.csv`, in the sites.csv format, ready to append.
+Output is `candidats.csv`, in the sites.csv format, ready to append.
 
-    uv run python find_anfr_candidates.py --region example   # dept from scenarios.json
+    uv run python find_candidates.py --region example   # dept from scenarios.json
+    uv run python find_candidates.py --region example --sources anfr
 
 `--around-zone <name>` asks a different question: not « what could fill the
 gaps of a département », but « which existing high points could see this one
@@ -39,12 +63,11 @@ decide. No département and no viewshed are needed beforehand, so this is the
 first step of such a region, before the DEM. Supports are listed nearest
 first; `--top` and `--ecart` still apply when given.
 
-    uv run python find_anfr_candidates.py --region <region> --around-zone <zone>
+    uv run python find_candidates.py --region <region> --around-zone <zone>
 """
 
 import argparse
 import csv
-import json
 import math
 import os
 import re
@@ -60,9 +83,13 @@ import numpy as np  # noqa: E402
 import rasterio  # noqa: E402
 from pyproj import Transformer  # noqa: E402
 from shapely.geometry import Point  # noqa: E402
+from shapely.prepared import prep  # noqa: E402
 
 from config import REGION, VIEWSHED_RADIUS_M  # noqa: E402
-from analysis_shape.zones import load_zone, region_dept, zone_geometry  # noqa: E402
+from analysis_shape.anfr import (  # noqa: E402
+    default_paths, load_reference_table, read_supports)
+from analysis_shape.wfs import bbox_l93, get_features  # noqa: E402
+from analysis_shape.zones import _dept_gdf, load_zone, region_dept, zone_geometry  # noqa: E402
 
 REPO = Path(__file__).resolve().parent
 
@@ -82,28 +109,64 @@ NATURES_UTILES = {
     "38": "immeuble", "39": "local technique",
 }
 
-# TPO_ID → whether access is negotiated with a public body or bought from an
-# operator. The distinction drives cost and is a structural criterion, not a
-# detail: operator sites carry recurring fees.
-PROPRIETAIRES_PUBLICS = {
-    "1", "3", "6", "7", "10", "11", "13", "15", "17", "18", "20", "23",
-    "24", "25", "26", "34", "35", "39",
+# TPO_ID (SUP_PROPRIETAIRE.txt) → who access is negotiated with. The
+# distinction drives cost and is a structural criterion, not a detail: private
+# sites carry recurring fees. Network operators are told apart from public
+# bodies so a map can show them, while scenarios.json decides how each counts.
+# Any code not listed — tower companies, telecom operators, broadcasters,
+# companies, private persons — is PRIVE.
+ACCES_PUBLIC = {
+    "1",   # ANFR
+    "3",   # Aviation Civile
+    "6",   # Conseil Départemental
+    "7",   # Conseil Régional
+    "10",  # CROSS
+    "11",  # DDE
+    "15",  # Ets public, Minist, Synd mixt
+    "17",  # Syndicat des eaux, Adduction
+    "18",  # Etat Ministère
+    "20",  # Météo
+    "23",  # Phares et balises
+    "26",  # SDIS, secours, incendie
+    "34",  # Commune, communauté de commune
+    "35",  # Voies navigables de France
+    "39",  # Etat Ministère
+    "82",  # SYADEN (syndicat d'énergie)
+}
+ACCES_RESEAU = {
+    "13",  # EDF ou GDF (Enedis included)
+    "19",  # La Poste
+    "24",  # SNCF Réseau
+    "25",  # RTE
+    "30",  # Sociétés d'Autoroutes
+    "45",  # RATP
+    "62",  # SNCF
 }
 
+
+def acces(tpo_id):
+    if tpo_id in ACCES_PUBLIC:
+        return "PUBLIC"
+    if tpo_id in ACCES_RESEAU:
+        return "RESEAU"
+    return "PRIVE"
+
+
+SOURCES = ("anfr", "chateaux-eau")
+
+WATER_TOWERS = "BDTOPO_V3:reservoir"
+# Not built yet: nothing to put a camera on. A tower out of service still stands.
+ETATS_ABSENTS = {"En projet", "En construction"}
+# The SUP_NATURE code of a water tower, given to BD TOPO towers so that both
+# sources read the same downstream.
+NAT_CHATEAU_EAU = "4"
+
 to_l93 = Transformer.from_crs("EPSG:4326", "EPSG:2154", always_xy=True).transform
+to_wgs = Transformer.from_crs("EPSG:2154", "EPSG:4326", always_xy=True).transform
 
 
 def norm(value):
     return unicodedata.normalize("NFC", str(value)).strip()
-
-
-def load_reference_table(path, encoding="utf-8"):
-    table = {}
-    for line in Path(path).read_text(encoding=encoding).splitlines()[1:]:
-        if ";" in line:
-            key, label = line.split(";", 1)
-            table[key.strip()] = label.strip()
-    return table
 
 
 def insee_dept(props, dept):
@@ -124,43 +187,124 @@ def insee_dept(props, dept):
 def load_supports(path, dept=None, near=None):
     """ANFR supports of one département, one per distinct structure.
 
-    The export is a geojson with one feature per line, so it is read as a
-    stream: loading 77 MB to keep one département would be wasteful, and
-    several stations share a single support. `near(x, y)` replaces or narrows
-    the département filter with a test on Lambert-93 coordinates.
+    The export is read as a stream (analysis_shape/anfr.py): several stations
+    share a single support, and loading it whole to keep one département
+    would be wasteful. `near(x, y)` replaces or narrows the département filter
+    with a test on Lambert-93 coordinates.
     """
     supports, seen = [], set()
-    with open(path, encoding="utf-8") as handle:
-        for line in handle:
-            line = line.strip().rstrip(",")
-            if not line.startswith('{ "type": "Feature"'):
-                continue
-            feature = json.loads(line)
-            props = feature["properties"]
-            if dept and not insee_dept(props, dept):
-                continue
-            lon, lat = feature["geometry"]["coordinates"]
-            key = (round(lat, 5), round(lon, 5), props.get("SUP_NM_HAUT"))
-            if key in seen:
-                continue
-            x, y = to_l93(lon, lat)
-            if near and not near(x, y):
-                continue
-            seen.add(key)
-            address = " ".join(
-                str(props[k]) for k in
-                ("ADR_LB_LIEU", "ADR_LB_ADD1", "ADR_LB_ADD2", "ADR_LB_ADD3")
-                if props.get(k))
-            supports.append({
-                "sup_id": props.get("SUP_ID"), "lat": lat, "lon": lon,
-                "x": x, "y": y,
-                "hauteur": props.get("SUP_NM_HAUT"),
-                "nat_id": str(props.get("NAT_ID")),
-                "tpo_id": str(props.get("TPO_ID")),
-                "insee": str(props.get("COM_CD_INSEE")),
-                "adresse": address,
-            })
+    for props in read_supports(path):
+        if dept and not insee_dept(props, dept):
+            continue
+        lat, lon = props["lat"], props["lon"]
+        key = (round(lat, 5), round(lon, 5), props.get("SUP_NM_HAUT"))
+        if key in seen:
+            continue
+        x, y = to_l93(lon, lat)
+        if near and not near(x, y):
+            continue
+        seen.add(key)
+        address = " ".join(
+            str(props[k]) for k in
+            ("ADR_LB_LIEU", "ADR_LB_ADD1", "ADR_LB_ADD2", "ADR_LB_ADD3")
+            if props.get(k))
+        supports.append({
+            "sup_id": props.get("SUP_ID"), "lat": lat, "lon": lon,
+            "x": x, "y": y,
+            "hauteur": props.get("SUP_NM_HAUT"),
+            "nat_id": str(props.get("NAT_ID")),
+            "tpo_id": str(props.get("TPO_ID")),
+            "insee": str(props.get("COM_CD_INSEE")),
+            "adresse": address,
+            "source": "anfr",
+        })
     return supports
+
+
+def _number(value):
+    """A BD TOPO attribute as a float, None when missing (NaN in the frame)."""
+    if value is None or (isinstance(value, float) and math.isnan(value)):
+        return None
+    return float(value)
+
+
+def tower_height(row):
+    """`hauteur`, else roof minus ground: `hauteur` is empty on some towers."""
+    height = _number(row.get("hauteur"))
+    if height:
+        return height
+    roof = (_number(row.get("altitude_maximale_toit"))
+            or _number(row.get("altitude_minimale_toit")))
+    ground = _number(row.get("altitude_minimale_sol"))
+    if roof is not None and ground is not None and roof > ground:
+        return round(roof - ground, 1)
+    return None
+
+
+def load_water_towers(bounds, inside):
+    """BD TOPO water towers within `bounds` (Lambert-93) passing `inside(x, y)`."""
+    gdf = get_features(WATER_TOWERS, BBOX=bbox_l93(*bounds))
+    towers, no_height = [], 0
+    for _, row in gdf.iterrows():
+        if (row.get("nature") != "Château d'eau"
+                or row.get("etat_de_l_objet") in ETATS_ABSENTS):
+            continue
+        centre = row.geometry.centroid
+        if not inside(centre.x, centre.y):
+            continue
+        height = tower_height(row)
+        if height is None:
+            no_height += 1
+            continue
+        lon, lat = to_wgs(centre.x, centre.y)
+        towers.append({
+            # `RESERVOI0000002203289356` → `2203289356`: short, still unique.
+            "sup_id": str(row.get("cleabs")).removeprefix("RESERVOI").lstrip("0"),
+            "lat": lat, "lon": lon, "x": centre.x, "y": centre.y,
+            "hauteur": height, "nat_id": NAT_CHATEAU_EAU, "tpo_id": None,
+            "insee": None, "adresse": "château d'eau", "source": "bdtopo",
+        })
+    if no_height:
+        print(f"  ({no_height} water tower(s) without any height, left out)")
+    return towers
+
+
+def merge_water_towers(supports, towers, gap_m):
+    """One entry per structure, whichever source lists it.
+
+    An ANFR support registered as a water tower within `gap_m` of a BD TOPO
+    tower is that tower — of its nearest one, when two towers stand side by
+    side. The nearest support keeps its identifier and owner and takes the
+    tower's position and height; any other one is the same structure listed
+    twice, and goes. A support of another kind stays as it is, next to the
+    tower: a 60 m pylon at the foot of a 25 m water tower is not that tower.
+    """
+    by_tower = {}
+    for i, support in enumerate(supports):
+        if support["source"] != "anfr" or support["nat_id"] != NAT_CHATEAU_EAU:
+            continue
+        dist, t = min(
+            ((math.hypot(support["x"] - tower["x"], support["y"] - tower["y"]), t)
+             for t, tower in enumerate(towers)),
+            default=(None, None))
+        if dist is not None and dist <= gap_m:
+            by_tower.setdefault(t, []).append((dist, i))
+
+    dropped, new = set(), []
+    for t, tower in enumerate(towers):
+        same = [i for _, i in sorted(by_tower.get(t, []))]
+        if not same:
+            new.append(tower)
+            continue
+        keep = supports[same[0]]
+        keep.update({k: tower[k] for k in ("lat", "lon", "x", "y", "hauteur")})
+        keep["source"] = "anfr+bdtopo"
+        dropped.update(same[1:])
+    out = [s for i, s in enumerate(supports) if i not in dropped] + new
+    print(f"  {len(towers)} BD TOPO water towers: {len(by_tower)} already in ANFR "
+          f"(merged, {len(dropped)} duplicate support(s) dropped), "
+          f"{len(new)} new")
+    return out
 
 
 def existing_sites(region):
@@ -235,17 +379,17 @@ def thin(candidates, min_gap_m):
 
 
 def select(candidates, top, max_operateurs):
-    """The first `top` candidates (all when None), operator sites capped."""
+    """The first `top` candidates (all when None), private sites capped."""
     if max_operateurs is None:
         return candidates[:top]
     # The quota applies walking down the sorted list: keep the best
-    # operator sites up to the cap, then take public ones only. Merit order
-    # is therefore preserved within each category.
+    # private sites up to the cap, then take public and network ones only.
+    # Merit order is therefore preserved within each category.
     shortlist, operateurs = [], 0
     for support in candidates:
         if top is not None and len(shortlist) >= top:
             break
-        if not support["public"]:
+        if support["acces"] == "PRIVE":
             if operateurs >= max_operateurs:
                 continue
             operateurs += 1
@@ -254,9 +398,11 @@ def select(candidates, top, max_operateurs):
 
 
 def write_candidates(shortlist, region):
-    out = REPO / "data" / region / "candidats_anfr.csv"
+    out = REPO / "data" / region / "candidats.csv"
     with out.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle, delimiter=";")
+        # « \n » like sites.csv: the csv module's default « \r\n » survived an
+        # append to sites.csv as a stray « \r », read back as an empty row.
+        writer = csv.writer(handle, delimiter=";", lineterminator="\n")
         writer.writerow(["Name", "Latitude", "Longitude", "Owner", "Height"])
         for support in shortlist:
             # A motorway address sometimes carries a '/' (« A6 >Paris/Aire de
@@ -266,27 +412,32 @@ def write_candidates(shortlist, region):
             # without saying why. Cleaned here, at the source.
             label = re.sub(r'[/\\:*?"<>|]', '-',
                            norm(support["adresse"]).replace(";", ","))[:40] or "no address"
+            prefix = "BDTOPO" if support["source"] == "bdtopo" else "ANFR"
             writer.writerow([
-                f"ANFR {support['sup_id']} - {label}",
+                f"{prefix} {support['sup_id']} - {label}",
                 round(support["lat"], 6), round(support["lon"], 6),
-                ("PUBLIC" if support["public"] else "OPERATEUR")
-                + f" {support['proprietaire']}".replace(";", ","),
+                f"{support['acces']} {support['proprietaire']}".replace(";", ","),
                 round(float(support["hauteur"]), 1),
             ])
     return out
 
 
 def report(shortlist, out, note):
-    publics = sum(1 for s in shortlist if s["public"])
+    by_access = Counter(s["acces"] for s in shortlist)
     print(f"\n✅ {out.relative_to(REPO)} — {len(shortlist)} candidates, "
-          f"{publics} public, {len(shortlist) - publics} operator")
+          f"{by_access['PUBLIC']} public, {by_access['RESEAU']} network, "
+          f"{by_access['PRIVE']} private")
     print(note)
     # Shortlist breakdown: useful to spot, before running a single viewshed,
     # whether one kind of support or one owner dominates enough to skew the
     # reading (e.g. a flood of urban buildings, or a single operator locking
     # up every usable structure).
+    par_source = Counter(s["source"] for s in shortlist)
     par_nature = Counter(s["nature"] for s in shortlist)
     par_proprio = Counter(s["proprietaire"] for s in shortlist)
+    print("\n   breakdown by source (anfr+bdtopo: the same structure in both):")
+    for source, n in par_source.most_common():
+        print(f"     {n:3d}  {source}")
     print(f"\n   breakdown by kind ({len(par_nature)} kinds):")
     for nature, n in par_nature.most_common():
         print(f"     {n:3d}  {nature}")
@@ -303,11 +454,18 @@ def main():
     parser.add_argument("--dept", default=None,
                         help="département code, e.g. 77 (default: \"dept\" in "
                              "data/<region>/scenarios.json)")
-    parser.add_argument("--anfr", type=Path,
-                        default=Path.home() / "Downloads" / "SUP_SUPPORT.geojson")
-    parser.add_argument("--refs", type=Path,
-                        default=Path.home() / "Downloads"
-                        / "20250131-export-etalab-ref-1-")
+    parser.add_argument("--sources", default=",".join(SOURCES),
+                        help=f"comma-separated, among {', '.join(SOURCES)} "
+                             f"(default: both)")
+    parser.add_argument("--doublon", type=float, default=50.0,
+                        help="an ANFR water tower this close to a BD TOPO water "
+                             "tower is that tower (m)")
+    parser.add_argument("--anfr", type=Path, default=None,
+                        help="SUP_SUPPORT.txt (or a former .geojson); default: "
+                             "the newest export in data/anfr/ (make anfr)")
+    parser.add_argument("--refs", type=Path, default=None,
+                        help="folder of SUP_NATURE.txt and SUP_PROPRIETAIRE.txt; "
+                             "default: the same export")
     parser.add_argument("--zone", default="dept",
                         help="zone of interest used for the score (default: dept)")
     parser.add_argument("--around-zone", metavar="ZONE",
@@ -326,12 +484,16 @@ def main():
     parser.add_argument("--top", type=int, default=None,
                         help="number of candidates written to the CSV (default "
                              "25, all with --around-zone)")
-    parser.add_argument("--publics-seulement", action="store_true")
+    parser.add_argument("--publics-seulement", action="store_true",
+                        help="keep PUBLIC and RESEAU supports only, no PRIVE")
     parser.add_argument("--max-operateurs", type=int, default=None,
-                        help="caps operator supports in the list; the rest is "
-                             "filled with public ones. Recurring access cost is a "
-                             "structuring criterion, not a detail")
+                        help="caps PRIVE supports in the list; the rest is "
+                             "filled with public and network ones. Recurring "
+                             "access cost is a structuring criterion, not a detail")
     args = parser.parse_args()
+    sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    if not sources or set(sources) - set(SOURCES):
+        raise SystemExit(f"❌ --sources: pick among {', '.join(SOURCES)}")
 
     around = None
     if args.around_zone:
@@ -348,19 +510,23 @@ def main():
         args.ecart = 3000.0 if args.ecart is None else args.ecart
         args.top = 25 if args.top is None else args.top
 
-    if not args.anfr.exists():
-        raise SystemExit(f"❌ ANFR export not found: {args.anfr}")
-
-    natures = load_reference_table(args.refs / "SUP_NATURE.txt")
-    proprios = load_reference_table(args.refs / "SUP_PROPRIETAIRE.txt")
+    natures, proprios = {NAT_CHATEAU_EAU: "château d'eau"}, {}
+    if "anfr" in sources:
+        args.anfr, args.refs = default_paths(args.anfr, args.refs)
+        if not args.anfr.exists():
+            raise SystemExit(f"❌ ANFR export not found: {args.anfr}")
+        print(f"   ANFR export: {args.anfr}")
+        natures = load_reference_table(args.refs / "SUP_NATURE.txt")
+        proprios = load_reference_table(args.refs / "SUP_PROPRIETAIRE.txt")
 
     near = None
     if around is not None:
-        print(f"▶ ANFR, within {args.radius / 1000:.0f} km of zone "
+        print(f"▶ {' + '.join(sources)}, within {args.radius / 1000:.0f} km of zone "
               f"« {args.around_zone} »"
               + (f", département {args.dept}" if args.dept else ""))
         minx, miny, maxx, maxy = around.bounds
         r = args.radius
+        tower_bounds = (minx - r, miny - r, maxx + r, maxy + r)
 
         def near(x, y):
             # The bounding box first: the exact distance is only worth it for
@@ -368,10 +534,35 @@ def main():
             if not (minx - r <= x <= maxx + r and miny - r <= y <= maxy + r):
                 return False
             return around.distance(Point(x, y)) <= r
+
+        tower_inside = near
     else:
-        print(f"▶ ANFR, département {args.dept}")
-    supports = load_supports(args.anfr, args.dept, near)
-    print(f"  {len(supports)} distinct supports")
+        print(f"▶ {' + '.join(sources)}, département {args.dept}")
+
+    supports = []
+    if "anfr" in sources:
+        supports = load_supports(args.anfr, args.dept, near)
+        print(f"  {len(supports)} distinct ANFR supports")
+    if "chateaux-eau" in sources:
+        if args.dept:
+            # ANFR supports are sorted by INSEE code; towers have none, so the
+            # département outline decides for them. Fetched here only: the
+            # ANFR source alone never needs it.
+            outline = (_dept_gdf(args.region, args.dept)
+                       .to_crs("EPSG:2154").geometry.union_all())
+            in_dept = prep(outline)
+            if around is None:
+                tower_bounds = outline.bounds
+
+                def tower_inside(x, y):
+                    return in_dept.contains(Point(x, y))
+            else:
+                # --dept narrows the ANFR pool by INSEE code; do the same
+                # for towers.
+                def tower_inside(x, y):
+                    return near(x, y) and in_dept.contains(Point(x, y))
+        towers = load_water_towers(tower_bounds, tower_inside)
+        supports = merge_water_towers(supports, towers, args.doublon)
 
     kept = [s for s in supports if s["nat_id"] in NATURES_UTILES]
     print(f"  {len(kept)} of a usable kind")
@@ -379,12 +570,18 @@ def main():
     print(f"  {len(kept)} at least {args.hauteur_min:.0f} m tall")
 
     for support in kept:
-        support["public"] = support["tpo_id"] in PROPRIETAIRES_PUBLICS
-        support["proprietaire"] = proprios.get(support["tpo_id"], "inconnu")
+        if support["source"] == "bdtopo":
+            # No owner in BD TOPO; a water tower belongs to a commune or a
+            # water syndicate far more often than not. See the docstring.
+            support["acces"] = "PUBLIC"
+            support["proprietaire"] = "château d'eau (BD TOPO)"
+        else:
+            support["acces"] = acces(support["tpo_id"])
+            support["proprietaire"] = proprios.get(support["tpo_id"], "inconnu")
         support["nature"] = natures.get(support["nat_id"], "?")
     if args.publics_seulement:
-        kept = [s for s in kept if s["public"]]
-        print(f"  {len(kept)} with a public owner")
+        kept = [s for s in kept if s["acces"] != "PRIVE"]
+        print(f"  {len(kept)} with a public or network owner")
 
     already = existing_sites(args.region)
     kept = [s for s in kept
@@ -398,11 +595,12 @@ def main():
         kept.sort(key=lambda s: (s["distance_m"], -(s["hauteur"] or 0)))
         shortlist = select(thin(kept, args.ecart), args.top, args.max_operateurs)
         out = write_candidates(shortlist, args.region)
-        print(f"\n{'dist':>7} {'height':>6}  {'access':<10} {'kind':<18} owner")
+        print(f"\n{'dist':>7} {'height':>6}  {'access':<10} {'kind':<18} {'source':<11} owner")
         for support in shortlist:
             print(f"{support['distance_m'] / 1000:>5.1f}km {support['hauteur']:>5.0f}m  "
-                  f"{'public' if support['public'] else 'OPERATOR':<10} "
-                  f"{support['nature'][:18]:<18} {support['proprietaire'][:28]}")
+                  f"{support['acces']:<10} "
+                  f"{support['nature'][:18]:<18} {support['source']:<11} "
+                  f"{support['proprietaire'][:28]}")
         report(shortlist, out,
                "   dist = to the zone outline, 0 inside it. Append these rows to\n"
                "   sites.csv: the DEM is framed on them, then compute_viewsheds.py.")
@@ -429,11 +627,12 @@ def main():
     shortlist = select(thin(kept, args.ecart), args.top, args.max_operateurs)
     out = write_candidates(shortlist, args.region)
 
-    print(f"\n{'score':>7} {'height':>6}  {'access':<10} {'kind':<18} owner")
+    print(f"\n{'score':>7} {'height':>6}  {'access':<10} {'kind':<18} {'source':<11} owner")
     for support in shortlist:
         print(f"{support['score_km2']:>7.0f} {support['hauteur']:>5.0f}m  "
-              f"{'public' if support['public'] else 'OPERATOR':<10} "
-              f"{support['nature'][:18]:<18} {support['proprietaire'][:28]}")
+              f"{support['acces']:<10} "
+              f"{support['nature'][:18]:<18} {support['source']:<11} "
+              f"{support['proprietaire'][:28]}")
 
     report(shortlist, out,
            "   The score is an upper bound ignoring terrain: it sorts, it does not\n"

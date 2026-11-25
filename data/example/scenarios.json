@@ -8,7 +8,8 @@
   "gestionnaires": {
     "_note": "Correspondance libellé Owner → catégorie de coût d'accès, sur sous-chaîne sans accent ni casse. Un gestionnaire inconnu tombe dans « defaut ».",
     "defaut": "operateur",
-    "public": ["SDIS", "Commune", "Syndicat des eaux", "Gestionnaire public"],
+    "public": ["SDIS", "Commune", "Syndicat des eaux", "Gestionnaire public", "PUBLIC"],
+    "reseau": ["RESEAU", "SNCF", "RTE", "EDF", "ENEDIS"],
     "delegataire": ["SUEZ", "VEOLIA"],
     "operateur": ["TDF", "ORANGE", "SFR", "BOUYGUES", "FREE", "TOTEM"]
   },
