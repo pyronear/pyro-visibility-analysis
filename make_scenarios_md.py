@@ -25,6 +25,7 @@ from analysis_shape.names import site_name  # noqa: E402
 
 # Labels for the owner categories, in reading order.
 ETIQUETTES = {"en place": "*en place*", "public": "public",
+              "reseau": "réseau",
               "delegataire": "délégataire", "operateur": "**opérateur**",
               "prive": "**privé**"}
 

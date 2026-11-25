@@ -206,14 +206,15 @@ def main():
         return results
 
     open_run = greedy(None, f"Scenario A — all sites ({args.picks} picks)")
-    public_run = greedy(0, f"Scenario B — public sites only ({args.picks} picks)")
+    public_run = greedy(0, f"Scenario B — no paid site: public and network only "
+                           f"({args.picks} picks)")
 
     if open_run and public_run:
-        print("\nWhat the operator sites buy\n")
+        print("\nWhat the paid sites buy\n")
         for step in range(min(len(open_run), len(public_run))):
             a, b = open_run[step][2], public_run[step][2]
             print(f"  at {step + 1} site(s): all {a:>6.0f} km² "
-                  f"({100 * a / objectif_km2:4.1f} %)  |  public {b:>6.0f} km² "
+                  f"({100 * a / objectif_km2:4.1f} %)  |  free {b:>6.0f} km² "
                   f"({100 * b / objectif_km2:4.1f} %)  |  gap {a - b:>+5.0f} km²")
 
     out = os.path.join("data", args.region, "output", "priorisation.csv")

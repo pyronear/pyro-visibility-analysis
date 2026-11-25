@@ -16,7 +16,12 @@ The mapping is now declared per region, under `gestionnaires` in
 
     {"gestionnaires": {"defaut": "operateur",
                        "public": ["SDIS", "Syndicat des eaux", "Commune"],
+                       "reseau": ["SNCF", "RTE"],
                        "delegataire": ["SUEZ", "VEOLIA"]}}
+
+`public` and `reseau` (network operators) are free in a capped selection
+(analysis_shape/selection.py); every other category counts against the cap.
+find_candidates.py prefixes ANFR owners with PUBLIC, RESEAU or PRIVE.
 
 Matching is on accent-insensitive, case-insensitive substrings, because the
 labels come from three sources that spell nothing the same way — a SDIS
@@ -36,10 +41,12 @@ DEFAUT = "operateur"
 TABLE_PAR_DEFAUT = {
     "defaut": DEFAUT,
     "public": ["SDIS", "Commune", "communaut", "Syndicat des eaux", "ONF",
-               "Conseil", "Ets public", "Etat", "SNCF", "DDE", "RTE",
-               "Aviation Civile", "ANFR", "PUBLIC"],
+               "Conseil", "Ets public", "Etat", "DDE", "Aviation Civile",
+               "ANFR", "PUBLIC"],
+    "reseau": ["RESEAU", "SNCF", "RTE", "EDF ou GDF", "Autoroutes", "RATP"],
     "operateur": ["ORANGE", "TDF", "SFR", "BOUYGUES", "FREE", "TOTEM",
-                  "Towercast", "ATC", "Cellnex", "OPERATEUR", "OPER",
+                  "HIVORY", "Towercast", "ATC", "Cellnex", "ON TOWER",
+                  "PHOENIX", "VALOCIME", "OPERATEUR", "OPER", "PRIVE",
                   "Société Privée", "Particulier"],
 }
 
