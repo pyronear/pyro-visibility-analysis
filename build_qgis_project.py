@@ -283,7 +283,10 @@ def main():
     # Magenta fill, under the coverage rasters: toggling a scenario off shows
     # the whole stake, toggling it on leaves only the uncovered parts visible
     # in red. Two readings of the same thing.
-    if ZONE == 'old':
+    # The OLD of regions prepared before fetch_zone.py sits in its own file,
+    # every département together; fetch_zone.py writes zones/old.gpkg.
+    if ZONE == 'old' and not os.path.exists(
+            os.path.join(ROOT, 'data', REGION, 'zones', 'old.gpkg')):
         zone_path = os.path.join(ROOT, 'data', REGION,
                                  'old_debroussaillement.gpkg')
         zone_layer_name, zone_filter = 'old', f"\"dept\" = '{DEPT}'"
