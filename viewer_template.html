@@ -108,11 +108,13 @@
 const DATA = __DATA__;
 
 // Pyronear palette, with the meaning of the QGIS project's colours: blue-ish
-// for installed cameras, green / orange / red by access cost; red, orange,
-// light and dark green for 0, 1, 2 and 3+ cameras.
+// for installed cameras, green / orange / red by access cost, violet for
+// network operators (free like public sites, but not public bodies); red,
+// orange, light and dark green for 0, 1, 2 and 3+ cameras.
 const CATEGORIES = {
   'en place': ['Caméras en place', '#06474a'],
   'public': ['Sites publics', '#25806f'],
+  'reseau': ['Sites gestionnaires de réseau', '#7b61c4'],
   'delegataire': ['Sites délégataires', '#f5a623'],
   'operateur': ['Sites opérateurs', '#c4532f'],
   'prive': ['Sites privés', '#c4532f'],
