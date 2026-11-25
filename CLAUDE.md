@@ -327,9 +327,11 @@ from `fetch_zone.py` (BD TOPO public forests, by point or ONF identifier).
 
 **Search for high points, don't just validate them.**
 `find_candidates.py` merges a département's ANFR supports with BD TOPO water
-towers, which the register misses when they carry no antenna (an ANFR support
-within 50 m of a tower is that tower: BD TOPO position and height, ANFR owner;
-BD TOPO gives no owner, so a tower alone is listed PUBLIC). Then, in one pass:
+towers, which the register misses when they carry no antenna (an ANFR water
+tower within 50 m of a BD TOPO tower is that tower: BD TOPO position and
+height, ANFR owner; a support of another kind that close stays a separate
+entry; BD TOPO gives no owner, so a tower alone is listed PUBLIC). Then, in
+one pass:
 usable kind, minimum height, distance to known sites, owner, then a
 « blind spot » score — uncovered zone area within a detection-radius disc,
 via an integral image, terrain ignored (an upper bound). Sorted and spaced

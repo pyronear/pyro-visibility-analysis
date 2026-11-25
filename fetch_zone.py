@@ -69,6 +69,7 @@ from analysis_shape.zones import _dept_gdf, _normalise_dept, region_dept  # noqa
 from config import REGION  # noqa: E402
 
 FORESTS = "BDTOPO_V3:foret_publique"
+OLD = "DEBROUSSAILLEMENT:debroussaillement"
 
 # `where` filters on attributes, after the request; `dept_field` lets the
 # server select a département's polygons instead of a bounding box, which
@@ -76,7 +77,7 @@ FORESTS = "BDTOPO_V3:foret_publique"
 SOURCES = {
     "forets-publiques": {"layer": FORESTS},
     "forets-domaniales": {"layer": FORESTS, "where": {"nature": "Forêt domaniale"}},
-    "old": {"layer": "DEBROUSSAILLEMENT:debroussaillement", "dept_field": "dept"},
+    "old": {"layer": OLD, "dept_field": "dept"},
 }
 DEFAULT_SOURCE = "forets-publiques"
 
@@ -108,7 +109,10 @@ def by_dept(region, layer, dept, dept_field=None):
         gdf = get_features(layer, BBOX=bbox_l93(xmin, ymin, xmax, ymax))
     if gdf.empty:
         return gdf
-    gdf = gpd.clip(gdf, outline)
+    # A neighbouring polygon that only touches the border clips to a line or a
+    # point: it would be rasterised as zone cells with no area to count them
+    # against. Keep polygons only; main() fails if nothing is left.
+    gdf = gpd.clip(gdf, outline, keep_geom_type=True)
     return gdf[~gdf.geometry.is_empty]
 
 
@@ -184,7 +188,9 @@ def main():
             sources = str(row.get("identifiants_sources") or "")
             onf = next((s.split(":", 1)[1] for s in sources.split("/")
                         if s.strip().startswith("ONF:")), None)
-            key = (row[toponym] or "(no toponym)", onf)
+            name = row[toponym]
+            key = (name if isinstance(name, str) and name.strip()
+                   else "(no toponym)", onf)
             rows[key] = rows.get(key, 0.0) + row.geometry.area / 1e6
         for (name, onf), km2 in sorted(rows.items(), key=lambda kv: -kv[1]):
             print(f"   {name} — {km2:,.1f} km²" + (f" — --onf {onf}" if onf else ""))

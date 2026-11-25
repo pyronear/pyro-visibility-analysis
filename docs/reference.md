@@ -81,10 +81,12 @@ default):
   (BD TOPO)` — a commune or a water syndicate, most of the time. Correct the
   `Owner` by hand when a survey says otherwise.
 
-A water tower with antennas is in both. An ANFR support within `--doublon`
-(default 50 m) of a BD TOPO tower is that tower: one entry is kept, with the
+A water tower with antennas is in both. An ANFR support registered as a water
+tower within `--doublon` (default 50 m) of a BD TOPO tower is that tower — of
+the nearest one when two stand side by side: one entry is kept, with the
 BD TOPO position and height (the structure, without the antenna mast) and the
-ANFR identifier and owner. On a test département the tower-to-support
+ANFR identifier and owner. A support of another kind that close, such as a
+pylon at the foot of the tower, stays a separate entry. On a test département the tower-to-support
 distances fall below 50 m or above 100 m, nothing in between.
 
 Then the same passes for every source: usable kind (water towers, pylons,
